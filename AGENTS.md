@@ -49,7 +49,7 @@ findings = scan(text)          # список Finding(type, start, end, confiden
   "placeholder_template": "[{type}_{n}]",
   "allowlist": ["example.com"],
   "disabled_detectors": [],
-  "enabled_detectors": ["high_entropy"],
+  "enabled_detectors": ["high_entropy", "names_aggressive"],
   "custom_patterns": [
     {"name": "employee_id", "type": "EMPLOYEE_ID", "pattern": "EMP-\\d{6}", "confidence": 0.9}
   ]
