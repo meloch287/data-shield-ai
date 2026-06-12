@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# venv
+.venv/
+venv/
+env/
+
+# инструменты
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ОС/редакторы
+.DS_Store
+.idea/
+.vscode/
+
+# локальные данные (никогда не коммитим реальные данные/отчёты)
+*.local.json
+audit*.json
+report*.json

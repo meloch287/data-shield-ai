@@ -1,0 +1,15 @@
+{
+  "min_confidence": 0.7,
+  "placeholder_template": "[{type}_{n}]",
+  "allowlist": ["example.com", "support@mycompany.com"],
+  "disabled_detectors": [],
+  "enabled_detectors": ["high_entropy"],
+  "custom_patterns": [
+    {
+      "name": "employee_id",
+      "type": "EMPLOYEE_ID",
+      "pattern": "EMP-\\d{6}",
+      "confidence": 0.9
+    }
+  ]
+}

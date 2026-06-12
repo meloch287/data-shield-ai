@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Лаунчер CLI `datashield`, работающий без установки пакета.
+
+Добавляет корень репозитория в sys.path и вызывает datashield.cli.main —
+поэтому команда работает из любого места, на чистой stdlib, без pip install.
+"""
+import os
+import sys
+
+# realpath разворачивает симлинк (команда ставится как ссылка в ~/.local/bin),
+# поэтому корень репозитория вычисляется верно из любого места вызова.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from datashield.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())
