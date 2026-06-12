@@ -2,194 +2,274 @@
 
 # 🛡️ Data Shield AI
 
-### 位于你与 AI 之间的隐私防护层
-
-在文本离开你的设备**之前**，于本地脱敏敏感数据。<br/>
-无需联网。无依赖。纯 Python。
-
-<br/>
+本地 PII/密钥脱敏层。在文本离开本机之前屏蔽敏感数据。
 
 [![CI](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#-测试)
-[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#)
-[![Detectors](https://img.shields.io/badge/detectors-52-orange.svg)](#-功能特性)
+[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#测试)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#指标)
+[![Detectors](https://img.shields.io/badge/detectors-52-orange.svg)](#检测器目录)
 
-<br/>
-
-<b>🌐 其他语言：</b>
-<br/>
 <a href="README.md">🇬🇧 English</a> &nbsp;·&nbsp;
 <a href="README.ru.md">🇷🇺 Русский</a> &nbsp;·&nbsp;
 <a href="README.zh-CN.md"><b>🇨🇳 中文</b></a>
 
 </div>
 
----
-
 ```text
 输入   →   Иван Петров, INN 7707083893, 卡号 4111 1111 1111 1111, 密钥 AKIAIOSFODNN7EXAMPLE
 输出   →   [PERSON_1], INN [INN_1], 卡号 [CREDIT_CARD_1], 密钥 [AWS_ACCESS_KEY_1]
 ```
 
-当你把文本发送给外部 AI 时，个人信息、财务细节和各类密钥很容易随任务一起泄露。
-**Data Shield AI** 会在发送前于本地将它们剔除，只把脱敏后的任务交给 AI。
+纯 Python 标准库，零依赖，不联网。52 个检测器，45 种数据类型。同一值 → 同一占位符；原始值不写入磁盘。
 
-## 📑 目录
+- [流程](#流程)
+- [架构](#架构)
+- [检测器目录](#检测器目录)
+- [置信度模型](#置信度模型)
+- [重叠消解](#重叠消解)
+- [校验算法](#校验算法)
+- [指标](#指标)
+- [隐私模型](#隐私模型)
+- [安装 / 使用 / API](#安装)
+- [测试](#测试)
 
-- [功能特性](#-功能特性)
-- [安装](#-安装)
-- [使用](#-使用)
-- [编程接口](#-编程接口)
-- [配置](#-配置)
-- [更高召回模式](#-更高召回模式)
-- [速度](#-速度)
-- [隐私](#-隐私)
-- [测试](#-测试)
+## 流程
 
-## ✨ 功能特性
-
-- **无需 ML 的人名识别（PERSON）** — 俄语父称、上下文线索（“меня зовут…”、
-  “Mr.”、“Dear”），以及来自内置词典的“名 + 姓”组合。冷启动约 15 毫秒，毫不拖慢。
-- **俄罗斯地址（ADDRESS）** — 街道/大街/胡同；邮政编码。
-- **俄罗斯** — INN（10/12 位校验）、SNILS、护照、手机号、OGRN/OGRNIP（校验位）、
-  KPP、BIC、银行账户、医保单号（OMS）、驾照。
-- **国际** — 电子邮件、电话、银行卡（**Luhn 校验**）、IBAN（mod-97）、
-  IPv4/IPv6、MAC、美国 SSN/EIN、英国 NINO、ETH/BTC 加密钱包地址。
-- **密钥** — AWS / OpenAI / Anthropic / GitHub / GitLab / Google / Slack /
-  Stripe / HuggingFace / Shopify 等的密钥、JWT、私钥、`password=…`。
-- **稳定占位符** — 同一值 → 同一占位符，AI 仍能理解“同一个人 / 同一张卡”，
-  但看不到真实数据。
-- **低误报** — 用校验和取代粗糙的正则。
-- **默认隐私** — 原始值只存在于内存中；报告仅保存加盐哈希。
-- **混合模式** — 可选的 ML 插件（Presidio 或轻量的 GLiNER），用于对自由文本中的
-  人名/地址/机构名做更高召回的识别。
-- **零依赖。** Python 3.9+，开箱即用 52 个检测器。
-
-## 📦 安装
-
-```bash
-git clone git@github.com:meloch287/data-shield-ai.git
-cd data-shield-ai
-bash install.sh        # Claude Code 技能 + `datashield` 命令
+```mermaid
+flowchart LR
+  subgraph DET["52 detectors run independently"]
+    direction TB
+    RX["regex + checksum validators"]
+    KW["keyword-context base/boost"]
+    NM["names gazetteer + heuristics"]
+  end
+  IN["input text"] --> DET
+  DET -->|findings| FIL
+  FIL["filter: confidence ≥ min,<br/>allowlist, only/exclude"] --> RES
+  RES["resolve overlaps<br/>bytearray occupancy, O of n"] --> ALLOC
+  ALLOC["allocate placeholders<br/>value to TYPE_n"] --> OUT["masked text + stats + report"]
 ```
 
-或者无需安装，直接在仓库内使用：
+每个检测器产出 `Finding(type, start, end, value, confidence, detector)`。引擎从不查看检测器内部——它只看到 `Finding`，因此新增检测器（包括 ML 插件）无需改动引擎。
+
+## 架构
+
+```mermaid
+flowchart TD
+  cli["cli.py<br/>redact · scan · stats · detectors"] --> api["api.py<br/>build_engine / redact / scan"]
+  cfg["config.py<br/>.datashield.json"] --> api
+  api --> reg["detectors/registry.py<br/>enable/disable, custom patterns"]
+  api --> eng["engine.py<br/>RedactionEngine"]
+  reg --> det["detectors/*"]
+  det --> base["detectors/base.py<br/>RegexDetector · KeywordContextDetector"]
+  det --> val["validators.py<br/>Luhn · INN · SNILS · IBAN · OGRN"]
+  det --> data["data/names.py<br/>RU/EN gazetteer"]
+  eng --> mask["masking.py<br/>PlaceholderAllocator"]
+```
+
+| 模块 | 职责 | LOC* |
+|------|------|-----:|
+| `engine.py` | 编排、重叠消解、报告 | ~140 |
+| `detectors/base.py` | `Finding`、正则与上下文检测器 | ~140 |
+| `detectors/{regex_intl,ru,extra,secrets,addresses,names}.py` | 52 个检测器 | ~600 |
+| `detectors/{ml,gliner}_plugin.py` | 可选的惰性 ML 适配器 | ~200 |
+| `validators.py` | Luhn / INN / SNILS / IBAN / OGRN 校验 | ~110 |
+| `masking.py` | 稳定的类型化占位符分配 | ~60 |
+| `config.py` · `api.py` · `cli.py` | 配置、公共 API、CLI | ~340 |
+
+<sub>* 核心合计：<b>1665</b> 行、21 个文件；测试：<b>4725</b> 行、18 个文件。</sub>
+
+## 检测器目录
+
+52 个检测器 → 45 种占位符类型。`conf` = 置信度；`a→b` = 当上下文（25 字符窗口）中出现关键词时由基线提升。低于默认阈值 `0.70` 的命中会被丢弃，因此上下文相关的 ID 不会在裸数字上触发。
+
+**国际**
+
+| 检测器 | 类型 | conf | 校验 |
+|--------|------|:----:|------|
+| `email` | EMAIL | 0.98 | — |
+| `phone_intl` | PHONE | 0.80 | 需前导 `+` |
+| `credit_card` | CREDIT_CARD | 0.90 | Luhn + 拒绝前导 0/全同 |
+| `iban` | IBAN | 0.95 | mod-97 |
+| `ipv4` / `ipv6` | IP | 0.85 / 0.80 | 八位组范围 / `::` 形式 |
+| `mac` / `mac_cisco` | MAC | 0.85 | — |
+
+**俄罗斯**
+
+| 检测器 | 类型 | conf | 校验 |
+|--------|------|:----:|------|
+| `inn` | INN | var→0.95 | 校验位（10/12） |
+| `snils` | SNILS | 0.80→0.95 | 校验和 |
+| `passport_ru` | PASSPORT_RU | 0.40→0.90 | 上下文 |
+| `phone_ru` | PHONE_RU | 0.85 | — |
+| `ogrn` / `ogrnip` | OGRN/OGRNIP | 0.85 | 校验位 |
+| `kpp` `bic` `bank_account` `oms_policy` `driver_license_ru` | … | 0.40–0.55→0.90+ | 上下文 |
+| `address_ru` | ADDRESS | 0.78 | 街道关键词 + 首字母大写名称 |
+| `postal_code_ru` | POSTAL_CODE | 0.30→0.85 | 上下文（`индекс`） |
+
+**身份 / 加密**
+
+| 检测器 | 类型 | conf | 校验 |
+|--------|------|:----:|------|
+| `us_ssn` `uk_nino` | US_SSN / UK_NINO | 0.50→0.92 | 上下文相关 |
+| `us_ein` | US_EIN | 0.40→0.90 | 上下文 |
+| `eth_address` | ETH_ADDRESS | 0.95 | `0x` + 40 hex |
+| `btc_address` | BTC_ADDRESS | 0.78 | base58 / bech32 |
+| `names` | PERSON | 启发式 | 父称 · 上下文 · 词典配对 |
+
+**密钥**（0.90–0.99，具备可辨识前缀）
+
+`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `sendgrid_key` `jwt` `private_key` `password` `secret_assignment`
+
+**可选**（默认关闭）：`high_entropy`（0.75）、`names_aggressive`（单个名字）、`ml`（Presidio）、`gliner`（ONNX NER）。
+
+## 置信度模型
+
+每个命中带有 `[0,1]` 的置信度。引擎保留 `confidence ≥ min_confidence`（默认 `0.70`）。
+
+```mermaid
+flowchart LR
+  A["email 0.98<br/>private key 0.99<br/>API keys 0.95-0.97"] --> M{"≥ 0.70?"}
+  B["card 0.90 · IBAN 0.95<br/>RU phone 0.85 · INN-12 0.72"] --> M
+  C["passport 0.40 · SSN 0.50<br/>KPP/BIC 0.40-0.55<br/>bare INN-10 0.55"] --> M
+  M -->|yes| K["masked"]
+  M -->|"no (needs keyword nearby)"| S["kept"]
+  C -. "+keyword in 25-char window" .-> P["boost to 0.90+"]
+  P --> M
+```
+
+设计规则：结构上模糊的值（9–12 位数字、`NNN-NN-NNNN` 形式的代码）在邻近出现关键词（`ИНН`、`СНИЛС`、`SSN`、`БИК`…）之前保持在阈值**以下**。因此订单号、零件号不会被屏蔽，而真正带标签的 ID 会被屏蔽。
+
+## 重叠消解
+
+检测器独立运行并产生重叠候选（`+7…` 同时命中 `phone_ru` 与 `phone_intl`；ETH 地址内部的数字段命中 `credit_card`）。消解按优先级贪心进行：
+
+```mermaid
+flowchart TD
+  S["sort candidates by<br/>(confidence ↓, length ↓, start ↑)"] --> L["bytearray occupied[max_end]"]
+  L --> I{"next candidate"}
+  I --> Q{"occupied.find(1, start, end) == -1 ?"}
+  Q -->|free| ACC["mark span occupied · accept"]
+  Q -->|overlap| SKIP["skip"]
+  ACC --> I
+  SKIP --> I
+```
+
+`occupied.find` 与切片赋值在 C 层执行，因此该过程关于文本长度约为 O(n)，而非成对区间检查的 O(k²)。在 2 MB、含 160 000 个不同命中的输入上：**7.2 秒 → 1.64 秒**。
+
+## 校验算法
+
+用校验和取代朴素正则匹配，以压制误报。
+
+| 算法 | 适用于 | 校验 |
+|------|--------|------|
+| Luhn | 银行卡 | `Σ 各位(每隔一位加倍) mod 10 == 0`，拒绝前导 0/全同 |
+| INN-10 | 法人税号 | 加权和 `mod 11 mod 10 == d[9]` |
+| INN-12 | 个人税号 | 两位校验位 |
+| SNILS | 养老金号 | `Σ d[i]·(9-i) mod 101` → 校验 |
+| IBAN | 银行账户 | 前 4 位移到末尾，字母→数字，`mod 97 == 1` |
+| OGRN/OGRNIP | 公司注册 | `int(前 n 位) mod (11/13) mod 10 == 末位` |
+
+## 指标
+
+单核，Python 3.14，热进程。吞吐随输入大小线性变化并稳定在 **~1.05 MB/s**；冷启动（导入 → 首次 redact）**~15 毫秒**（相比加载 ML 模型需数秒）。
+
+```mermaid
+xychart-beta
+  title "Latency vs input size (lower is better)"
+  x-axis ["1KB", "4KB", "16KB", "64KB", "256KB", "1MB"]
+  y-axis "ms per call" 0 --> 1000
+  bar [1.05, 3.9, 15.4, 61, 243, 955]
+```
+
+| 输入 | 毫秒/次 | MB/s |
+|-----:|--------:|-----:|
+| 1 KB | 1.05 | 1.02 |
+| 4 KB | 3.90 | 1.03 |
+| 16 KB | 15.4 | 1.04 |
+| 64 KB | 61.0 | 1.05 |
+| 256 KB | 243 | 1.05 |
+| 1 MB | 955 | 1.05 |
+
+```mermaid
+xychart-beta
+  title "Overlap resolution, 2MB / 160k findings (seconds)"
+  x-axis ["before: O(k^2)", "after: O(n)"]
+  y-axis "seconds" 0 --> 8
+  bar [7.2, 1.64]
+```
+
+| 指标 | 值 |
+|------|----|
+| 检测器 / 类型 | 52 / 45 |
+| 默认开启 | 48 |
+| 冷启动 | ~15 毫秒 |
+| 吞吐 | ~1.05 MB/s |
+| 测试 | **701**（标准库 unittest），Python 3.9–3.13 全绿 |
+| 测试耗时 | ~6.1 秒 |
+| 运行时依赖 | **0** |
+| 核心规模 | 1665 行 / 21 文件 |
+
+检测器经过并行对抗审计（13 个智能体）：发现并修复了 13 个精确率/召回率/DoS 问题，每个都由回归测试锁定（`tests/test_adversarial_regression.py`）。
+
+## 隐私模型
+
+```mermaid
+flowchart LR
+  V["original value"] -->|in memory only| PH["placeholder TYPE_n"]
+  V -. "--report only" .-> H["salted SHA-256<br/>(truncated)"]
+  V -.->|never persisted| X["disk x / network x"]
+```
+
+- 单向脱敏——无还原路径，无保险库。
+- `--report` 写入 `{type, start, end, confidence, detector, value_sha256, preview}`——绝不写原始值。
+- 隐私测试保证原始值不出现在任何报告中。
+
+## 安装
 
 ```bash
+git clone git@github.com:meloch287/data-shield-ai.git && cd data-shield-ai
+bash install.sh        # Claude Code 技能 + `datashield` 命令
+# 或无需安装：
 python3 -m datashield redact --in input.txt
 ```
 
-## 🚀 使用
+### 使用
 
 ```bash
-# 脱敏（主命令）
-echo "我的邮箱 a@b.com, INN 7707083893" | datashield redact
-# -> 我的邮箱 [EMAIL_1], INN [INN_1]
-
-datashield scan  --in dialog.txt    # 查看识别到的内容（不脱敏）
-datashield stats --in dialog.txt    # 按类型汇总
-datashield detectors                # 列出所有检测器
+echo "我的邮箱 a@b.com, INN 7707083893" | datashield redact   # -> [EMAIL_1], INN [INN_1]
+datashield scan  --in f.txt        # 命中，不脱敏
+datashield stats --in f.txt        # 按类型计数
+datashield detectors               # 列出全部 52 个
 ```
 
-<details>
-<summary><b>常用参数</b></summary>
+参数：`--in/--out` · `--only T1,T2` · `--exclude T` · `--min-confidence X` · `--json` · `--report audit.json` · `--config path`。
 
-| 参数 | 用途 |
-|------|------|
-| `--in / --out` | 用文件代替 stdin/stdout |
-| `--only EMAIL,CREDIT_CARD` | 仅这些类型 |
-| `--exclude IP` | 排除这些类型 |
-| `--min-confidence 0.5` | 置信度阈值（识别更多） |
-| `--json` | 机器可读输出 |
-| `--report audit.json` | 不含原始值的审计（仅哈希） |
-| `--config .datashield.json` | 自定义配置 |
-
-</details>
-
-## 🐍 编程接口
+### API
 
 ```python
 from datashield import redact, scan
-
-result = redact("phone +7 909 123 45 67")
-print(result.masked_text)   # 'phone [PHONE_RU_1]'
-print(result.stats)          # {'PHONE_RU': 1}
-
-for f in scan("email a@b.com"):
-    print(f.type, f.start, f.end, f.confidence)
+redact("phone +7 909 123 45 67").masked_text   # 'phone [PHONE_RU_1]'
+[(f.type, f.confidence) for f in scan("a@b.com")]
 ```
 
-## ⚙️ 配置
-
-工作目录下的 `.datashield.json`（示例见 `.datashield.example.json`）：
+### 配置（`.datashield.json`）
 
 ```json
-{
-  "min_confidence": 0.7,
-  "placeholder_template": "[{type}_{n}]",
-  "allowlist": ["example.com"],
-  "enabled_detectors": ["high_entropy"],
-  "custom_patterns": [
-    {"name": "employee_id", "type": "EMPLOYEE_ID", "pattern": "EMP-\\d{6}", "confidence": 0.9}
-  ]
-}
+{ "min_confidence": 0.7, "allowlist": ["example.com"],
+  "enabled_detectors": ["names_aggressive", "gliner"],
+  "custom_patterns": [{"name":"employee_id","type":"EMPLOYEE_ID","pattern":"EMP-\\d{6}","confidence":0.9}] }
 ```
 
-- `allowlist` — 永不脱敏的值/域名。
-- `enabled_detectors` — 开启可选项（`high_entropy`、`names_aggressive`、
-  `ml`、`gliner`）。
-- `disabled_detectors` — 按名称或类型关闭某个检测器。
-- `custom_patterns` — 你自己的正则表达式。
-
-## 🎯 更高召回模式
-
-**激进人名（无依赖）** — 以可能的同形词（`Vera`、`Roman`）为代价，脱敏单个已知
-名字（`Ivan`、`John`）：
-
-```json
-{ "enabled_detectors": ["names_aggressive"] }
-```
-
-**通过 GLiNER 使用 ML（轻量，CPU 上的 ONNX）：**
+## 测试
 
 ```bash
-pip install "data-shield-ai[gliner]"
-```
-然后 `{ "enabled_detectors": ["gliner"] }`。
-
-**通过 Microsoft Presidio 使用 ML（最高召回）：**
-
-```bash
-pip install "data-shield-ai[ml]"
-python3 -m spacy download en_core_web_lg
-```
-然后 `{ "enabled_detectors": ["ml"] }`。未安装相应包时，核心照常工作——插件只是
-不增加任何识别结果。
-
-## ⚡ 速度
-
-冷启动约 15 毫秒，典型提示（1–3 KB）耗时 1–3 毫秒。ML 插件只加载一次模型；
-零依赖的核心完全无需加载模型。基准测试：`python3 tools/benchmark.py`。
-
-## 🔒 隐私
-
-- 完全本地运行，不使用网络。
-- 原始值仅存在于内存中，退出时清除。
-- **单向脱敏** —— 不会还原原始值。
-- `--report` 仅包含类型、位置和**加盐 SHA-256 哈希**。
-
-## 🧪 测试
-
-```bash
-python3 -m unittest discover -s tests -t .
+python3 -m unittest discover -s tests -t .     # 701 个测试
+python3 tools/benchmark.py                      # 吞吐
 ```
 
-701 个测试，仅用标准库 `unittest`，在 Python 3.9–3.13 上全部通过。
+## 许可证
 
-## 📄 许可证
-
-[MIT](LICENSE) © Саша
-
-<div align="center"><sub>为隐私优先的 AI 工作流打造 · <a href="README.md">English</a> · <a href="README.ru.md">Русский</a></sub></div>
+[MIT](LICENSE) © Саша · <a href="README.md">English</a> · <a href="README.ru.md">Русский</a>

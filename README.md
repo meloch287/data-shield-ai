@@ -2,198 +2,274 @@
 
 # 🛡️ Data Shield AI
 
-### A privacy layer between you and the AI
-
-Mask confidential data **locally** — before it ever leaves your machine.<br/>
-No network. No dependencies. Pure Python.
-
-<br/>
+Local PII/secret redaction layer. Masks confidential data before text leaves the machine.
 
 [![CI](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#-tests)
-[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#)
-[![Detectors](https://img.shields.io/badge/detectors-52-orange.svg)](#-features)
+[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#tests)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
+[![Detectors](https://img.shields.io/badge/detectors-52-orange.svg)](#detector-catalog)
 
-<br/>
-
-<b>🌐 Read this in:</b>
-<br/>
 <a href="README.md"><b>🇬🇧 English</b></a> &nbsp;·&nbsp;
 <a href="README.ru.md">🇷🇺 Русский</a> &nbsp;·&nbsp;
 <a href="README.zh-CN.md">🇨🇳 中文</a>
 
 </div>
 
----
-
 ```text
 in   →   Ivan Petrov, INN 7707083893, card 4111 1111 1111 1111, key AKIAIOSFODNN7EXAMPLE
 out  →   [PERSON_1], INN [INN_1], card [CREDIT_CARD_1], key [AWS_ACCESS_KEY_1]
 ```
 
-When you send text to an external AI, personal data, financial details, and
-secrets easily leak along with the actual task. **Data Shield AI** strips them
-out locally, before sending, leaving the AI only the anonymized task.
+Pure Python stdlib, no dependencies, no network. 52 detectors, 45 data types. Same value → same placeholder; originals never written to disk.
 
-## 📑 Contents
+- [Pipeline](#pipeline)
+- [Architecture](#architecture)
+- [Detector catalog](#detector-catalog)
+- [Confidence model](#confidence-model)
+- [Overlap resolution](#overlap-resolution)
+- [Validation algorithms](#validation-algorithms)
+- [Metrics](#metrics)
+- [Privacy model](#privacy-model)
+- [Install / Usage / API](#install)
+- [Tests](#tests)
 
-- [Features](#-features)
-- [Install](#-install)
-- [Usage](#-usage)
-- [Programmatic API](#-programmatic-api)
-- [Configuration](#-configuration)
-- [Higher-recall modes](#-higher-recall-modes)
-- [Speed](#-speed)
-- [Privacy](#-privacy)
-- [Tests](#-tests)
+## Pipeline
 
-## ✨ Features
-
-- **Names (PERSON) without ML** — Russian patronymics, context cues ("my name
-  is…", "Mr.", "Dear"), and "First Last" pairs from a built-in gazetteer.
-  ~15 ms cold start — no slowdown.
-- **Russian addresses (ADDRESS)** — streets/avenues/lanes; postal codes.
-- **Russia** — INN (10/12 checksum), SNILS, RF passport, RF phone, OGRN/OGRNIP
-  (check digit), KPP, BIC, bank account, OMS policy, driver's license.
-- **International** — email, phone, bank card (**Luhn-validated**), IBAN
-  (mod-97), IPv4/IPv6, MAC, US SSN/EIN, UK NINO, ETH/BTC crypto wallets.
-- **Secrets** — AWS / OpenAI / Anthropic / GitHub / GitLab / Google / Slack /
-  Stripe / HuggingFace / Shopify and more, JWT, private keys, `password=…`.
-- **Stable placeholders** — one value → one placeholder, so the AI can still
-  reason about "the same person / the same card" without seeing real data.
-- **Low false positives** — checksums instead of naive regexes.
-- **Private by default** — originals live in memory only; the report stores only
-  salted hashes.
-- **Hybrid** — optional ML plugins (Presidio or the lightweight GLiNER) for
-  maximum recall on free-form names/addresses/organizations.
-- **Zero dependencies.** Python 3.9+. 52 detectors out of the box.
-
-## 📦 Install
-
-```bash
-git clone git@github.com:meloch287/data-shield-ai.git
-cd data-shield-ai
-bash install.sh        # Claude Code skill + the `datashield` command
+```mermaid
+flowchart LR
+  subgraph DET["52 detectors run independently"]
+    direction TB
+    RX["regex + checksum validators"]
+    KW["keyword-context base/boost"]
+    NM["names gazetteer + heuristics"]
+  end
+  IN["input text"] --> DET
+  DET -->|findings| FIL
+  FIL["filter: confidence ≥ min,<br/>allowlist, only/exclude"] --> RES
+  RES["resolve overlaps<br/>bytearray occupancy, O of n"] --> ALLOC
+  ALLOC["allocate placeholders<br/>value to TYPE_n"] --> OUT["masked text + stats + report"]
 ```
 
-Or use it with no install, straight from the repo:
+Each detector emits `Finding(type, start, end, value, confidence, detector)`. The engine never looks inside a detector — it only sees `Finding`, so adding a detector (including the ML plugins) needs no engine change.
+
+## Architecture
+
+```mermaid
+flowchart TD
+  cli["cli.py<br/>redact · scan · stats · detectors"] --> api["api.py<br/>build_engine / redact / scan"]
+  cfg["config.py<br/>.datashield.json"] --> api
+  api --> reg["detectors/registry.py<br/>enable/disable, custom patterns"]
+  api --> eng["engine.py<br/>RedactionEngine"]
+  reg --> det["detectors/*"]
+  det --> base["detectors/base.py<br/>RegexDetector · KeywordContextDetector"]
+  det --> val["validators.py<br/>Luhn · INN · SNILS · IBAN · OGRN"]
+  det --> data["data/names.py<br/>RU/EN gazetteer"]
+  eng --> mask["masking.py<br/>PlaceholderAllocator"]
+```
+
+| Module | Responsibility | LOC* |
+|--------|----------------|-----:|
+| `engine.py` | orchestration, overlap resolution, report | ~140 |
+| `detectors/base.py` | `Finding`, regex + keyword-context detectors | ~140 |
+| `detectors/{regex_intl,ru,extra,secrets,addresses,names}.py` | the 52 detectors | ~600 |
+| `detectors/{ml,gliner}_plugin.py` | optional lazy ML adapters | ~200 |
+| `validators.py` | Luhn / INN / SNILS / IBAN / OGRN checks | ~110 |
+| `masking.py` | stable typed placeholder allocation | ~60 |
+| `config.py` · `api.py` · `cli.py` | config, public API, CLI | ~340 |
+
+<sub>* core total: <b>1665</b> lines across 21 files; tests: <b>4725</b> lines across 18 files.</sub>
+
+## Detector catalog
+
+52 detectors → 45 placeholder types. `conf` = confidence; `a→b` = base→boosted when a keyword is in context (25-char window). Below the default threshold `0.70` a finding is dropped, so context-gated IDs do not fire on bare numbers.
+
+**International**
+
+| detector | type | conf | validation |
+|----------|------|:----:|------------|
+| `email` | EMAIL | 0.98 | — |
+| `phone_intl` | PHONE | 0.80 | leading `+` required |
+| `credit_card` | CREDIT_CARD | 0.90 | Luhn + reject 0-lead/repeated |
+| `iban` | IBAN | 0.95 | mod-97 |
+| `ipv4` / `ipv6` | IP | 0.85 / 0.80 | octet range / `::` form |
+| `mac` / `mac_cisco` | MAC | 0.85 | — |
+
+**Russia**
+
+| detector | type | conf | validation |
+|----------|------|:----:|------------|
+| `inn` | INN | var→0.95 | control digit (10/12) |
+| `snils` | SNILS | 0.80→0.95 | checksum |
+| `passport_ru` | PASSPORT_RU | 0.40→0.90 | context |
+| `phone_ru` | PHONE_RU | 0.85 | — |
+| `ogrn` / `ogrnip` | OGRN/OGRNIP | 0.85 | control digit |
+| `kpp` `bic` `bank_account` `oms_policy` `driver_license_ru` | … | 0.40–0.55→0.90+ | context |
+| `address_ru` | ADDRESS | 0.78 | street keyword + capitalized name |
+| `postal_code_ru` | POSTAL_CODE | 0.30→0.85 | context (`индекс`) |
+
+**Identity / crypto**
+
+| detector | type | conf | validation |
+|----------|------|:----:|------------|
+| `us_ssn` `uk_nino` | US_SSN / UK_NINO | 0.50→0.92 | context-gated |
+| `us_ein` | US_EIN | 0.40→0.90 | context |
+| `eth_address` | ETH_ADDRESS | 0.95 | `0x` + 40 hex |
+| `btc_address` | BTC_ADDRESS | 0.78 | base58 / bech32 |
+| `names` | PERSON | heuristic | patronymic · context · gazetteer pair |
+
+**Secrets** (0.90–0.99, distinctive prefixes)
+
+`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `sendgrid_key` `jwt` `private_key` `password` `secret_assignment`
+
+**Optional** (off by default): `high_entropy` (0.75), `names_aggressive` (single given names), `ml` (Presidio), `gliner` (ONNX NER).
+
+## Confidence model
+
+Every finding carries a confidence in `[0,1]`. The engine keeps `confidence ≥ min_confidence` (default `0.70`).
+
+```mermaid
+flowchart LR
+  A["email 0.98<br/>private key 0.99<br/>API keys 0.95-0.97"] --> M{"≥ 0.70?"}
+  B["card 0.90 · IBAN 0.95<br/>RU phone 0.85 · INN-12 0.72"] --> M
+  C["passport 0.40 · SSN 0.50<br/>KPP/BIC 0.40-0.55<br/>bare INN-10 0.55"] --> M
+  M -->|yes| K["masked"]
+  M -->|"no (needs keyword nearby)"| S["kept"]
+  C -. "+keyword in 25-char window" .-> P["boost to 0.90+"]
+  P --> M
+```
+
+Design rule: a value that is structurally ambiguous (a 9–12 digit number, a `NNN-NN-NNNN` code) stays **below** threshold until a keyword (`ИНН`, `СНИЛС`, `SSN`, `БИК`…) appears next to it. This is why order numbers and part numbers are not masked while real, labeled IDs are.
+
+## Overlap resolution
+
+Detectors run independently and produce overlapping candidates (e.g. `+7…` matches both `phone_ru` and `phone_intl`; a digit run inside an ETH address matches `credit_card`). Resolution is greedy by priority:
+
+```mermaid
+flowchart TD
+  S["sort candidates by<br/>(confidence ↓, length ↓, start ↑)"] --> L["bytearray occupied[max_end]"]
+  L --> I{"next candidate"}
+  I --> Q{"occupied.find(1, start, end) == -1 ?"}
+  Q -->|free| ACC["mark span occupied · accept"]
+  Q -->|overlap| SKIP["skip"]
+  ACC --> I
+  SKIP --> I
+```
+
+`occupied.find` / slice-assign run at C level, so the pass is ~O(n) in text length instead of the O(k²) of pairwise interval checks. Result on a 2 MB input with 160 000 distinct findings: **7.2 s → 1.64 s**.
+
+## Validation algorithms
+
+Checksums replace naive regex matching to suppress false positives.
+
+| algorithm | applies to | check |
+|-----------|------------|-------|
+| Luhn | credit cards | `Σ digits (every 2nd doubled) mod 10 == 0`, reject leading-0 / all-equal |
+| INN-10 | legal-entity tax id | weighted sum `mod 11 mod 10 == d[9]` |
+| INN-12 | individual tax id | two control digits |
+| SNILS | pension id | `Σ d[i]·(9-i) mod 101` → control |
+| IBAN | bank account | move 4 chars to tail, letters→numbers, `mod 97 == 1` |
+| OGRN/OGRNIP | company reg. | `int(first n) mod (11/13) mod 10 == last` |
+
+## Metrics
+
+Single core, Python 3.14, warm process. Throughput is linear in input size and constant at **~1.05 MB/s**; cold start (import → first redact) is **~15 ms** (vs seconds to load an ML model).
+
+```mermaid
+xychart-beta
+  title "Latency vs input size (lower is better)"
+  x-axis ["1KB", "4KB", "16KB", "64KB", "256KB", "1MB"]
+  y-axis "ms per call" 0 --> 1000
+  bar [1.05, 3.9, 15.4, 61, 243, 955]
+```
+
+| input | ms/call | MB/s |
+|------:|--------:|-----:|
+| 1 KB | 1.05 | 1.02 |
+| 4 KB | 3.90 | 1.03 |
+| 16 KB | 15.4 | 1.04 |
+| 64 KB | 61.0 | 1.05 |
+| 256 KB | 243 | 1.05 |
+| 1 MB | 955 | 1.05 |
+
+```mermaid
+xychart-beta
+  title "Overlap resolution, 2MB / 160k findings (seconds)"
+  x-axis ["before: O(k^2)", "after: O(n)"]
+  y-axis "seconds" 0 --> 8
+  bar [7.2, 1.64]
+```
+
+| metric | value |
+|--------|-------|
+| Detectors / types | 52 / 45 |
+| Default-on detectors | 48 |
+| Cold start | ~15 ms |
+| Throughput | ~1.05 MB/s |
+| Tests | **701** (stdlib unittest), green on Python 3.9–3.13 |
+| Test runtime | ~6.1 s |
+| <a name="footprint"></a>Runtime dependencies | **0** |
+| Core size | 1665 LOC / 21 files |
+
+Detectors were hardened by a parallel adversarial audit (13 agents): 13 precision/recall/DoS issues were found and fixed, each locked by a regression test (`tests/test_adversarial_regression.py`).
+
+## Privacy model
+
+```mermaid
+flowchart LR
+  V["original value"] -->|in memory only| PH["placeholder [TYPE_n]"]
+  V -. "--report only" .-> H["salted SHA-256<br/>(truncated)"]
+  V -.->|never persisted| X["disk ✗ / network ✗"]
+```
+
+- One-way redaction — no restoration path, no vault.
+- `--report` writes `{type, start, end, confidence, detector, value_sha256, preview}` — never the raw value.
+- A privacy test asserts originals never appear in any report.
+
+## Install
 
 ```bash
+git clone git@github.com:meloch287/data-shield-ai.git && cd data-shield-ai
+bash install.sh        # Claude Code skill + `datashield` command
+# or, no install:
 python3 -m datashield redact --in input.txt
 ```
 
-## 🚀 Usage
+### Usage
 
 ```bash
-# Redact (the main command)
-echo "my email a@b.com, INN 7707083893" | datashield redact
-# -> my email [EMAIL_1], INN [INN_1]
-
-datashield scan  --in dialog.txt    # show what was found (no masking)
-datashield stats --in dialog.txt    # summary by type
-datashield detectors                # list all detectors
+echo "my email a@b.com, INN 7707083893" | datashield redact   # -> [EMAIL_1], INN [INN_1]
+datashield scan  --in f.txt        # findings, no masking
+datashield stats --in f.txt        # counts by type
+datashield detectors               # list all 52
 ```
 
-<details>
-<summary><b>Useful flags</b></summary>
+Flags: `--in/--out` · `--only T1,T2` · `--exclude T` · `--min-confidence X` · `--json` · `--report audit.json` · `--config path`.
 
-| Flag | Purpose |
-|------|---------|
-| `--in / --out` | file instead of stdin/stdout |
-| `--only EMAIL,CREDIT_CARD` | only these types |
-| `--exclude IP` | exclude these types |
-| `--min-confidence 0.5` | confidence threshold (catches more) |
-| `--json` | machine-readable output |
-| `--report audit.json` | audit without raw values (hashes only) |
-| `--config .datashield.json` | custom config |
-
-</details>
-
-## 🐍 Programmatic API
+### API
 
 ```python
 from datashield import redact, scan
-
-result = redact("phone +7 909 123 45 67")
-print(result.masked_text)   # 'phone [PHONE_RU_1]'
-print(result.stats)          # {'PHONE_RU': 1}
-
-for f in scan("email a@b.com"):
-    print(f.type, f.start, f.end, f.confidence)
+redact("phone +7 909 123 45 67").masked_text   # 'phone [PHONE_RU_1]'
+[(f.type, f.confidence) for f in scan("a@b.com")]
 ```
 
-## ⚙️ Configuration
-
-`.datashield.json` in the working directory (see `.datashield.example.json`):
+### Config (`.datashield.json`)
 
 ```json
-{
-  "min_confidence": 0.7,
-  "placeholder_template": "[{type}_{n}]",
-  "allowlist": ["example.com"],
-  "enabled_detectors": ["high_entropy"],
-  "custom_patterns": [
-    {"name": "employee_id", "type": "EMPLOYEE_ID", "pattern": "EMP-\\d{6}", "confidence": 0.9}
-  ]
-}
+{ "min_confidence": 0.7, "allowlist": ["example.com"],
+  "enabled_detectors": ["names_aggressive", "gliner"],
+  "custom_patterns": [{"name":"employee_id","type":"EMPLOYEE_ID","pattern":"EMP-\\d{6}","confidence":0.9}] }
 ```
 
-- `allowlist` — values/domains that are never masked.
-- `enabled_detectors` — turn on optional ones (`high_entropy`,
-  `names_aggressive`, `ml`, `gliner`).
-- `disabled_detectors` — turn a detector off by name or type.
-- `custom_patterns` — your own regular expressions.
-
-## 🎯 Higher-recall modes
-
-**Aggressive names (no dependencies)** — mask single known given names
-(`Ivan`, `John`) at the cost of possible homonyms (`Vera`, `Roman`):
-
-```json
-{ "enabled_detectors": ["names_aggressive"] }
-```
-
-**ML via GLiNER (lightweight, ONNX on CPU):**
+## Tests
 
 ```bash
-pip install "data-shield-ai[gliner]"
-```
-Then `{ "enabled_detectors": ["gliner"] }`.
-
-**ML via Microsoft Presidio (maximum recall):**
-
-```bash
-pip install "data-shield-ai[ml]"
-python3 -m spacy download en_core_web_lg
-```
-Then `{ "enabled_detectors": ["ml"] }`. Without the packages installed, the core
-keeps working as usual — the plugins simply add no findings.
-
-## ⚡ Speed
-
-~15 ms cold start, a typical prompt (1–3 KB) in 1–3 ms. ML plugins load their
-model once; the dependency-free core needs no model loading at all.
-Benchmark: `python3 tools/benchmark.py`.
-
-## 🔒 Privacy
-
-- Fully local, no network is used.
-- Originals are kept in memory only and discarded on exit.
-- **One-way redaction** — there is no restoration of originals.
-- `--report` contains only the type, position, and a **salted SHA-256 hash**.
-
-## 🧪 Tests
-
-```bash
-python3 -m unittest discover -s tests -t .
+python3 -m unittest discover -s tests -t .     # 701 tests
+python3 tools/benchmark.py                      # throughput
 ```
 
-701 tests, stdlib `unittest` only, green on Python 3.9–3.13.
+## License
 
-## 📄 License
-
-[MIT](LICENSE) © Саша
-
-<div align="center"><sub>Built for privacy-first AI workflows · <a href="README.ru.md">Русский</a> · <a href="README.zh-CN.md">中文</a></sub></div>
+[MIT](LICENSE) © Саша · <a href="README.ru.md">Русский</a> · <a href="README.zh-CN.md">中文</a>
