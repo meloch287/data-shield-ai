@@ -52,6 +52,36 @@ def build() -> List[RegexDetector]:
             0.97,
         ),
         RegexDetector(
+            "github_pat",
+            "GITHUB_TOKEN",
+            r"\bgithub_pat_[A-Za-z0-9_]{60,}\b",
+            0.97,
+        ),
+        RegexDetector(
+            "gitlab_token", "GITLAB_TOKEN", r"\bglpat-[A-Za-z0-9_\-]{20,}\b", 0.95
+        ),
+        RegexDetector(
+            "huggingface_token", "HF_TOKEN", r"\bhf_[A-Za-z0-9]{30,}\b", 0.9
+        ),
+        RegexDetector("npm_token", "NPM_TOKEN", r"\bnpm_[A-Za-z0-9]{36}\b", 0.95),
+        RegexDetector(
+            "google_oauth_secret", "GOOGLE_OAUTH_SECRET",
+            r"\bGOCSPX-[A-Za-z0-9_\-]{20,}\b", 0.95,
+        ),
+        RegexDetector(
+            "digitalocean_token", "DO_TOKEN", r"\bdop_v1_[a-f0-9]{64}\b", 0.95
+        ),
+        RegexDetector(
+            "shopify_token", "SHOPIFY_TOKEN", r"\bshpat_[a-fA-F0-9]{32}\b", 0.95
+        ),
+        RegexDetector(
+            "square_token", "SQUARE_TOKEN", r"\bsq0atp-[A-Za-z0-9_\-]{22}\b", 0.9
+        ),
+        RegexDetector(
+            "sendgrid_key", "SENDGRID_KEY",
+            r"\bSG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}\b", 0.95,
+        ),
+        RegexDetector(
             "google_api_key",
             "GOOGLE_API_KEY",
             r"\bAIza[0-9A-Za-z\-_]{35}\b",

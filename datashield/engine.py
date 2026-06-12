@@ -23,20 +23,26 @@ def resolve_overlaps(findings: Sequence[Finding]) -> List[Finding]:
     Жадный отбор по приоритету гарантирует детерминированный результат: при
     конфликте `+7…` (PHONE_RU 0.85) и `+7…` (PHONE 0.8) победит более уверенный.
     """
+    if not findings:
+        return []
     ordered = sorted(
         findings,
         key=lambda f: (-f.confidence, -(f.end - f.start), f.start, f.type),
     )
-    accepted: List[Finding] = []
+    # Битовая карта занятых позиций. Кандидат принимается в порядке приоритета,
+    # если его диапазон ещё свободен. bytearray.find/срез работают на C-уровне,
+    # поэтому суммарно ~O(n) вместо O(k^2) на больших входах с тысячами находок.
+    size = max(f.end for f in findings)
+    occupied = bytearray(size)
+    chosen: List[Finding] = []
     for candidate in ordered:
-        overlaps = any(
-            not (candidate.end <= a.start or candidate.start >= a.end)
-            for a in accepted
-        )
-        if not overlaps:
-            accepted.append(candidate)
-    accepted.sort(key=lambda f: f.start)
-    return accepted
+        if occupied.find(1, candidate.start, candidate.end) == -1:
+            occupied[candidate.start:candidate.end] = b"\x01" * (
+                candidate.end - candidate.start
+            )
+            chosen.append(candidate)
+    chosen.sort(key=lambda f: f.start)
+    return chosen
 
 
 @dataclass

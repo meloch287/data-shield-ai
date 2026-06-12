@@ -3,7 +3,7 @@
   "placeholder_template": "[{type}_{n}]",
   "allowlist": ["example.com", "support@mycompany.com"],
   "disabled_detectors": [],
-  "enabled_detectors": ["high_entropy"],
+  "enabled_detectors": ["high_entropy", "names_aggressive"],
   "custom_patterns": [
     {
       "name": "employee_id",

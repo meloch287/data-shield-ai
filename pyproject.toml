@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "data-shield-ai"
-version = "1.0.0"
+version = "1.1.0"
 description = "Локальная приватная прослойка: маскирует конфиденциальные данные до отправки во внешний ИИ"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,8 +14,10 @@ keywords = ["privacy", "pii", "redaction", "anonymization", "llm", "security"]
 dependencies = []
 
 [project.optional-dependencies]
-# Гибридный режим: распознавание свободных имён/адресов.
+# Гибридный режим: распознавание свободных имён/адресов через Presidio.
 ml = ["presidio-analyzer>=2.2", "presidio-anonymizer>=2.2", "spacy>=3.4"]
+# Лёгкая альтернатива на GLiNER (ONNX-ускорение на CPU).
+gliner = ["gliner>=0.2", "onnxruntime>=1.16"]
 
 [project.scripts]
 datashield = "datashield.cli:main"
@@ -24,4 +26,4 @@ datashield = "datashield.cli:main"
 Homepage = "https://github.com/meloch287/data-shield-ai"
 
 [tool.setuptools]
-packages = ["datashield", "datashield.detectors"]
+packages = ["datashield", "datashield.detectors", "datashield.data"]

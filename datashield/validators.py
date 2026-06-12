@@ -14,6 +14,8 @@ __all__ = [
     "validate_inn",
     "validate_snils",
     "validate_iban",
+    "validate_ogrn",
+    "validate_ogrnip",
     "shannon_entropy",
 ]
 
@@ -85,6 +87,22 @@ def validate_iban(iban: str) -> bool:
         return int(converted) % 97 == 1
     except ValueError:
         return False
+
+
+def validate_ogrn(ogrn: str) -> bool:
+    """Проверка контрольной цифры ОГРН (13 знаков)."""
+    if not ogrn.isdigit() or len(ogrn) != 13:
+        return False
+    control = int(ogrn[:12]) % 11 % 10
+    return control == int(ogrn[12])
+
+
+def validate_ogrnip(ogrnip: str) -> bool:
+    """Проверка контрольной цифры ОГРНИП (15 знаков)."""
+    if not ogrnip.isdigit() or len(ogrnip) != 15:
+        return False
+    control = int(ogrnip[:14]) % 13 % 10
+    return control == int(ogrnip[14])
 
 
 def shannon_entropy(value: str) -> float:

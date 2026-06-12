@@ -11,7 +11,16 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
 from datashield.config import Config
-from datashield.detectors import ml_plugin, regex_intl, ru, secrets
+from datashield.detectors import (
+    addresses,
+    extra,
+    gliner_plugin,
+    ml_plugin,
+    names,
+    regex_intl,
+    ru,
+    secrets,
+)
 from datashield.detectors.base import RegexDetector
 
 __all__ = ["DetectorInfo", "build_active", "build_catalog"]
@@ -46,9 +55,14 @@ def build_catalog(config: Config) -> List[DetectorInfo]:
     pairs: List[Tuple[Any, bool]] = []
     pairs += [(d, True) for d in regex_intl.build()]
     pairs += [(d, True) for d in ru.build()]
+    pairs += [(d, True) for d in extra.build()]
+    pairs += [(d, True) for d in addresses.build()]
+    pairs += [(d, True) for d in names.build()]
+    pairs += [(d, False) for d in names.build_optional()]
     pairs += [(d, True) for d in secrets.build()]
     pairs += [(d, False) for d in secrets.build_optional()]
     pairs += [(d, False) for d in ml_plugin.build_optional()]
+    pairs += [(d, False) for d in gliner_plugin.build_optional()]
     pairs += [(d, True) for d in _custom_detectors(config)]
 
     disabled = set(config.disabled_detectors)
