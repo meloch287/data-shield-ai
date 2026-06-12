@@ -23,3 +23,29 @@ jobs:
         run: python -m unittest discover -s tests -t . -v
       - name: Smoke test CLI
         run: echo "email a@b.com, ИНН 7707083893" | python -m datashield redact
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff mypy
+      - name: Ruff
+        run: ruff check datashield tests
+      - name: Mypy
+        run: mypy datashield
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install coverage
+      - name: Coverage
+        run: |
+          coverage run -m unittest discover -s tests -t .
+          coverage report -m

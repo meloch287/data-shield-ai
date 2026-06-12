@@ -94,7 +94,7 @@ class RedactOnlyExcludeNewTypesTests(unittest.TestCase):
 
     # --- OGRN ---
     def test_only_ogrn_masks_valid_number(self):
-        text = "ОГРН {0} компании, почта a@b.com".format(OGRN_VALID)
+        text = f"ОГРН {OGRN_VALID} компании, почта a@b.com"
         code, out, _ = run(["redact", "--only", "OGRN"], stdin_text=text)
         self.assertEqual(code, 0)
         self.assertIn("[OGRN_1]", out)
@@ -103,7 +103,7 @@ class RedactOnlyExcludeNewTypesTests(unittest.TestCase):
         self.assertIn("a@b.com", out)
 
     def test_exclude_ogrn_keeps_number(self):
-        text = "ОГРН {0}, e-mail a@b.com".format(OGRN_VALID)
+        text = f"ОГРН {OGRN_VALID}, e-mail a@b.com"
         code, out, _ = run(["redact", "--exclude", "OGRN"], stdin_text=text)
         self.assertEqual(code, 0)
         self.assertIn(OGRN_VALID, out)
@@ -118,7 +118,7 @@ class RedactOnlyExcludeNewTypesTests(unittest.TestCase):
         self.assertIn(bad, out)
 
     def test_only_multiple_new_types(self):
-        text = "Иван Петров, ул. Ленина 5, ОГРН {0}".format(OGRN_VALID)
+        text = f"Иван Петров, ул. Ленина 5, ОГРН {OGRN_VALID}"
         code, out, _ = run(["redact", "--only", "PERSON,ADDRESS,OGRN"], stdin_text=text)
         self.assertEqual(code, 0)
         self.assertIn("[PERSON_1]", out)
@@ -259,7 +259,7 @@ class JsonOutputTests(unittest.TestCase):
     """--json для redact / scan / stats."""
 
     def test_redact_json_structure_new_types(self):
-        text = "Иван Петров, ул. Ленина 5, ОГРН {0}".format(OGRN_VALID)
+        text = f"Иван Петров, ул. Ленина 5, ОГРН {OGRN_VALID}"
         code, out, _ = run(["redact", "--json"], stdin_text=text)
         self.assertEqual(code, 0)
         payload = json.loads(out)
@@ -300,7 +300,7 @@ class JsonOutputTests(unittest.TestCase):
         self.assertEqual(json.loads(out), [])
 
     def test_scan_json_multiple_types(self):
-        text = "ОГРН {0}, ул. Ленина 5".format(OGRN_VALID)
+        text = f"ОГРН {OGRN_VALID}, ул. Ленина 5"
         code, out, _ = run(["scan", "--json"], stdin_text=text)
         self.assertEqual(code, 0)
         kinds = {i["type"] for i in json.loads(out)}
@@ -315,7 +315,7 @@ class JsonOutputTests(unittest.TestCase):
         self.assertEqual(stats.get("EMAIL"), 2)
 
     def test_stats_json_new_types(self):
-        text = "Иван Петров, ОГРН {0}".format(OGRN_VALID)
+        text = f"Иван Петров, ОГРН {OGRN_VALID}"
         code, out, _ = run(["stats", "--json"], stdin_text=text)
         self.assertEqual(code, 0)
         stats = json.loads(out)
@@ -351,20 +351,20 @@ class DetectorsCommandTests(unittest.TestCase):
         for name in ("names", "address_ru", "ogrn"):
             # Строка вида "  [вкл ] <name>  -> TYPE"; имя стоит прямо перед "->".
             row = next(
-                l for l in out.splitlines()
-                if "->" in l and l.split("->")[0].split()[-1] == name
+                line for line in out.splitlines()
+                if "->" in line and line.split("->")[0].split()[-1] == name
             )
             self.assertIn("вкл", row)
 
     def test_gliner_disabled_by_default(self):
         code, out, _ = run(["detectors"])
-        row = next(l for l in out.splitlines() if "gliner" in l)
+        row = next(line for line in out.splitlines() if "gliner" in line)
         self.assertIn("выкл", row)
         self.assertIn("по умолчанию выкл", row)
 
     def test_aggressive_names_disabled_by_default(self):
         code, out, _ = run(["detectors"])
-        row = next(l for l in out.splitlines() if "names_aggressive" in l)
+        row = next(line for line in out.splitlines() if "names_aggressive" in line)
         self.assertIn("выкл", row)
 
     def test_detectors_config_enables_gliner(self):
@@ -375,7 +375,7 @@ class DetectorsCommandTests(unittest.TestCase):
                 json.dump({"enabled_detectors": ["gliner"]}, f)
             code, out, _ = run(["detectors", "--config", cfg])
         self.assertEqual(code, 0)
-        row = next(l for l in out.splitlines() if "gliner" in l)
+        row = next(line for line in out.splitlines() if "gliner" in line)
         self.assertIn("вкл", row)
 
 

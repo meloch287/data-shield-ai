@@ -19,7 +19,6 @@ from collections import Counter
 
 from datashield import Config, redact, scan
 
-
 # --- Правдоподобные документы (общие фикстуры) ------------------------------
 
 LETTER = (
@@ -276,7 +275,7 @@ class PlaceholderStabilityTests(unittest.TestCase):
     def test_same_value_same_placeholder_across_doc(self):
         result = redact(INVOICE)
         # Повторный email получает тот же плейсхолдер.
-        for ph, typ in result.placeholders.items():
+        for ph in result.placeholders:
             self.assertTrue(ph.startswith("[") and ph.endswith("]"))
 
     def test_placeholders_map_to_correct_type(self):

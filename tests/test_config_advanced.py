@@ -522,7 +522,8 @@ class ConfigDataclassTests(unittest.TestCase):
 
     def test_config_is_frozen(self):
         cfg = Config()
-        with self.assertRaises(Exception):
+        # frozen dataclass -> FrozenInstanceError (подкласс AttributeError).
+        with self.assertRaises(AttributeError):
             cfg.min_confidence = 0.9  # type: ignore[misc]
 
     def test_equality(self):

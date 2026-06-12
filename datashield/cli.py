@@ -11,7 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
+from typing import List, Optional
 
 from datashield import __version__
 from datashield.api import build_engine
@@ -22,7 +23,7 @@ from datashield.masking import mask_preview
 
 def _read_input(path: Optional[str]) -> str:
     if path:
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:
             return handle.read()
     return sys.stdin.read()
 
@@ -63,7 +64,7 @@ def _load_config_or_exit(path: Optional[str]) -> Config:
         return load_config(path)
     except (OSError, ValueError) as exc:
         sys.stderr.write(f"Ошибка конфигурации: {exc}\n")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
 
 def _cmd_redact(args: argparse.Namespace) -> int:

@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
 
 __all__ = ["Config", "load_config", "DEFAULT_CONFIG_NAME"]
 
@@ -36,7 +36,7 @@ def load_config(path: Optional[str] = None) -> Config:
     resolved = path or find_default_config()
     if not resolved:
         return Config()
-    with open(resolved, "r", encoding="utf-8") as handle:
+    with open(resolved, encoding="utf-8") as handle:
         data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError("Конфиг должен быть JSON-объектом")

@@ -6,13 +6,13 @@
 """
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from typing import List, Optional
 
-from datashield.config import Config, load_config
+from datashield.config import Config
+from datashield.detectors.base import Finding
 from datashield.detectors.registry import build_active
 from datashield.engine import RedactionEngine, RedactionResult
-from datashield.detectors.base import Finding
-from typing import List
 
 __all__ = ["build_engine", "redact", "scan"]
 

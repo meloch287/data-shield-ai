@@ -15,14 +15,16 @@
 """
 import unittest
 
-from datashield import Config, redact, scan, build_engine, Finding
-from datashield.detectors import ml_plugin, gliner_plugin
-from datashield.detectors.ml_plugin import MlDetector, build_optional as ml_build_optional
+from datashield import Config, Finding, build_engine, redact, scan
+from datashield.detectors import gliner_plugin, ml_plugin
 from datashield.detectors.gliner_plugin import (
     GlinerDetector,
+)
+from datashield.detectors.gliner_plugin import (
     build_optional as gliner_build_optional,
 )
-
+from datashield.detectors.ml_plugin import MlDetector
+from datashield.detectors.ml_plugin import build_optional as ml_build_optional
 
 # --- Определяем фактическую доступность тяжёлых пакетов в окружении. ---
 

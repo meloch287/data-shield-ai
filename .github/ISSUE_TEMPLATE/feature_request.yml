@@ -1,0 +1,19 @@
+name: Feature request
+description: A new detector, locale, integration, or capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should it detect / do?
+    validations:
+      required: true
+  - type: textarea
+    id: format
+    attributes:
+      label: Format & validation
+      description: For a new detector — example values, and any checksum/structure that can keep false positives low.
+  - type: textarea
+    id: context
+    attributes:
+      label: Use case

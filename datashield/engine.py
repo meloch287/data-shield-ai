@@ -8,8 +8,9 @@ from __future__ import annotations
 import hashlib
 import os
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from datashield.detectors.base import Finding
 from datashield.masking import PlaceholderAllocator, mask_preview

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 from datashield.config import Config
 from datashield.detectors import (

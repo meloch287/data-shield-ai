@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import time
 import unittest
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 
 from datashield import Config, redact, scan
 

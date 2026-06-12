@@ -23,7 +23,6 @@ from datashield.data.names import (
 )
 from datashield.detectors.names import NameDetector, build, build_optional
 
-
 # Конфиг с включённым агрессивным режимом (одиночные имена).
 AGGRESSIVE = Config(enabled_detectors=("names_aggressive",))
 
