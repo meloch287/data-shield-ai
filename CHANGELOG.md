@@ -2,6 +2,16 @@
 
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [1.10.0] — 2026-06-13
+
+### Документация
+- **mkdocs-сайт** (`mkdocs.yml`, `docs/`): главная, cookbook, сравнение, ADR.
+- **Cookbook** (`docs/cookbook.md`) — рабочие рецепты: маскировка промпта,
+  обратимый round-trip, прокси OpenAI/LiteLLM, LangChain, MCP, логи, CI/pre-commit,
+  структурированные данные, свои детекторы, большие файлы/батч.
+- **Сравнение** (`docs/comparison.md`) — с Presidio / scrubadub / коммерческими DLP.
+- **ADR** — ключевые архитектурные решения (zero-deps, пороги+контекст, односторонность).
+
 ## [1.9.0] — 2026-06-13
 
 ### Производительность

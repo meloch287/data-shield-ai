@@ -300,42 +300,42 @@ class FakeForTypeTests(unittest.TestCase):
         out = fake_for_type("PERSON", "John Smith", "s")
         self.assertEqual(out, fake_person("John Smith", "s"))
 
-    def test_unknown_type_with_digits_uses_map_digits(self):
+    def test_value_with_letters_uses_fresh_token_no_leak(self):
+        # БЕЗОПАСНОСТЬ: значение с буквами (секрет/токен) -> свежий токен,
+        # длина сохранена, но НИ ОДНА буква оригинала не утекает.
         out = fake_for_type("SOMEID", "ID-2024-99", "s")
-        self.assertEqual(out, map_digits("ID-2024-99", "s"))
-        # Длина и разделители сохранены через map_digits.
         self.assertEqual(len(out), len("ID-2024-99"))
-        self.assertEqual(_separators(out), _separators("ID-2024-99"))
+        self.assertTrue(out.isalnum())
+        self.assertNotIn("ID", out)
+        self.assertNotEqual(out, map_digits("ID-2024-99", "s"))
 
-    def test_unknown_nondigit_fallback_shape(self):
+    def test_purely_numeric_uses_map_digits(self):
+        # Чисто числовое (цифры+разделители) — формо-сохранная замена цифр.
+        out = fake_for_type("SOMEID", "2024-99-00", "s")
+        self.assertEqual(out, map_digits("2024-99-00", "s"))
+        self.assertEqual(_separators(out), _separators("2024-99-00"))
+
+    def test_fresh_token_shape(self):
         out = fake_for_type("WEIRD", "hello", "s")
-        self.assertTrue(out.startswith("weird"))
-        trailing = out[len("weird"):]
-        self.assertEqual(len(trailing), 4)
-        self.assertTrue(trailing.isdigit())
+        self.assertEqual(len(out), len("hello"))
+        self.assertTrue(out.isalnum())
 
-    def test_unknown_nondigit_fallback_deterministic(self):
+    def test_fresh_token_deterministic(self):
         self.assertEqual(
             fake_for_type("WEIRD", "hello", "s"),
             fake_for_type("WEIRD", "hello", "s"),
         )
 
-    def test_unknown_nondigit_fallback_seed_sensitive(self):
+    def test_fresh_token_seed_sensitive(self):
         self.assertNotEqual(
             fake_for_type("WEIRD", "hello", "s1"),
             fake_for_type("WEIRD", "hello", "s2"),
         )
 
-    def test_unknown_nondigit_fallback_ignores_value_content(self):
-        # Для нецифрового нераспознанного типа значение игнорируется (только seed+тип).
-        self.assertEqual(
-            fake_for_type("WEIRD", "hello", "s"),
-            fake_for_type("WEIRD", "goodbye", "s"),
-        )
-
-    def test_unknown_type_lowercased_in_fallback(self):
-        out = fake_for_type("CustomTag", "abc", "s")
-        self.assertTrue(out.startswith("customtag"))
+    def test_fresh_token_no_original_letters(self):
+        out = fake_for_type("SECRET", "SuperSecretValue", "s")
+        self.assertNotEqual(out, "SuperSecretValue")
+        self.assertEqual(len(out), len("SuperSecretValue"))
 
 
 if __name__ == "__main__":

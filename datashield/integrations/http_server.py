@@ -80,6 +80,9 @@ def make_handler():
             except ValueError:
                 self._send(400, {"error": "invalid Content-Length"})
                 return
+            if length < 0:
+                self._send(400, {"error": "negative Content-Length"})
+                return
             if length > MAX_BODY_BYTES:
                 self._send(413, {"error": "body too large"})
                 return
@@ -97,7 +100,7 @@ def make_handler():
                 return
             try:
                 status, payload = process(self.path, body)
-            except (ValueError, TypeError) as exc:
+            except (ValueError, TypeError, AttributeError) as exc:
                 self._send(400, {"error": str(exc)})
                 return
             self._send(status, payload)

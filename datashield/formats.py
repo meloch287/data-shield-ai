@@ -20,6 +20,7 @@ __all__ = [
     "fake_phone",
     "fake_person",
     "fake_for_type",
+    "fresh_token",
 ]
 
 
@@ -99,8 +100,23 @@ def fake_person(original: str, seed: str) -> str:
     return " ".join(out)
 
 
+_ALNUM = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+
+def fresh_token(original: str, seed: str) -> str:
+    """Полностью свежий токен той же длины — НЕ сохраняет ни одного символа
+    оригинала (для секретов/токенов: иначе буквы утекли бы)."""
+    gen = byte_stream(seed)
+    return "".join(_ALNUM[next(gen) % len(_ALNUM)] for _ in range(max(1, len(original))))
+
+
 def fake_for_type(type_name: str, original: str, seed: str) -> str:
-    """Подбирает генератор по типу; иначе формо-сохранная замена цифр."""
+    """Подбирает генератор по типу.
+
+    Важно: формо-сохранную замену цифр применяем ТОЛЬКО к чисто числовым
+    значениям (карты/телефоны/ID). Если в значении есть буквы (секреты, токены),
+    они и есть тайна — отдаём полностью свежий токен, ничего не сохраняя.
+    """
     if type_name == "CREDIT_CARD":
         return fake_card(original, seed)
     if type_name == "EMAIL":
@@ -109,8 +125,8 @@ def fake_for_type(type_name: str, original: str, seed: str) -> str:
         return fake_phone(original, seed)
     if type_name == "PERSON":
         return fake_person(original, seed)
-    if any(c.isdigit() for c in original):
+    # Чисто числовое (с разделителями) — формо-сохранно меняем цифры.
+    if not any(c.isalpha() for c in original):
         return map_digits(original, seed)
-    # Нечисловое нераспознанное — безопасный заполнитель.
-    gen = byte_stream(seed)
-    return type_name.lower() + "".join(str(next(gen) % 10) for _ in range(4))
+    # Есть буквы → секрет/токен: свежий токен, без утечки исходных символов.
+    return fresh_token(original, seed)

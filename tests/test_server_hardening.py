@@ -11,6 +11,20 @@ class McpRobustnessTests(unittest.TestCase):
         for bad in ([1, 2, 3], 12345, "str", None, 3.14):
             self.assertIsNone(handle(bad))
 
+    def test_non_object_params_does_not_crash(self):
+        # tools/call с params не-объектом не должен ронять handle()
+        for bad in (42, "x", [1], None):
+            resp = handle(
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": bad}
+            )
+            self.assertIsNotNone(resp)  # вернул ответ, не упал
+        # arguments не-объект тоже
+        resp = handle({
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": {"name": "redact", "arguments": 99},
+        })
+        self.assertIn("result", resp)
+
     def test_serve_stdio_survives_non_object_lines(self):
         out = io.StringIO()
         serve_stdio(
@@ -32,6 +46,12 @@ class HttpRobustnessTests(unittest.TestCase):
 
     def test_max_body_constant_reasonable(self):
         self.assertGreaterEqual(MAX_BODY_BYTES, 1024 * 1024)
+
+    def test_non_string_strategy_raises_handled_error(self):
+        # process() с не-строковой strategy поднимает ошибку (do_POST -> 400),
+        # а не падает 500.
+        with self.assertRaises((ValueError, TypeError, AttributeError)):
+            process("/redact", {"text": "a@b.com", "strategy": 123})
 
     def test_health_and_redact_still_work(self):
         self.assertEqual(process("/health", {})[0], 200)

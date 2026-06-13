@@ -1,0 +1,21 @@
+site_name: Data Shield AI
+site_description: Local, offline privacy layer that masks confidential data before it reaches an external AI.
+repo_url: https://github.com/meloch287/data-shield-ai
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Cookbook: cookbook.md
+  - Comparison: comparison.md
+  - Architecture decisions:
+      - Zero dependencies: adr/0001-zero-dependencies.md
+      - Confidence & keyword gating: adr/0002-confidence-and-keyword-gating.md
+      - One-way default: adr/0003-one-way-redaction-default.md
+
+theme:
+  name: readthedocs
+
+markdown_extensions:
+  - admonition
+  - tables
+  - fenced_code

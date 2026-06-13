@@ -396,17 +396,19 @@ class FormatsTests(unittest.TestCase):
         self.assertEqual(len(fake_for_type("PHONE_RU", "+7 900 0000", "s")), len("+7 900 0000"))
         self.assertEqual(len(fake_for_type("PERSON", "Bob Lee", "s").split()), 2)
 
-    def test_fake_for_type_unknown_numeric_uses_map_digits(self):
-        out = fake_for_type("IBAN", "GB29 0000 1234", "s")
-        self.assertEqual(len(out), len("GB29 0000 1234"))
-        # Нецифровые символы (буквы, пробелы) сохранены.
-        for i, c in enumerate("GB29 0000 1234"):
+    def test_fake_for_type_purely_numeric_uses_map_digits(self):
+        # Чисто числовое (цифры+пробелы) — формо-сохранно; пробелы сохранены.
+        out = fake_for_type("ACCOUNT", "0000 1234 5678", "s")
+        self.assertEqual(len(out), len("0000 1234 5678"))
+        for i, c in enumerate("0000 1234 5678"):
             if not c.isdigit():
                 self.assertEqual(out[i], c)
 
-    def test_fake_for_type_unknown_non_numeric_uses_filler(self):
+    def test_fake_for_type_value_with_letters_uses_fresh_token(self):
+        # БЕЗОПАСНОСТЬ: значение с буквами -> свежий токен, без утечки.
         out = fake_for_type("WIDGET", "abcdef", "s")
-        self.assertTrue(out.startswith("widget"))
+        self.assertEqual(len(out), len("abcdef"))
+        self.assertTrue(out.isalnum())
         self.assertNotIn("abcdef", out)
 
     def test_fake_for_type_deterministic(self):

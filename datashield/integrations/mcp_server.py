@@ -104,9 +104,13 @@ def handle(request: Dict) -> Optional[Dict]:
     if method == "tools/list":
         return _result(request_id, {"tools": _TOOLS})
     if method == "tools/call":
-        params = request.get("params") or {}
+        params = request.get("params")
+        if not isinstance(params, dict):
+            params = {}
         name = str(params.get("name") or "")
-        args = params.get("arguments") or {}
+        args = params.get("arguments")
+        if not isinstance(args, dict):
+            args = {}
         try:
             return _result(request_id, _call_tool(name, args))
         except KeyError:

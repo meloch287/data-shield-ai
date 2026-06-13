@@ -7,8 +7,8 @@
 [![CI](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#测试)
-[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#指标)
+[![Tests](https://img.shields.io/badge/tests-1956%20passing-success.svg)](#测试)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
 [![Detectors](https://img.shields.io/badge/detectors-75-orange.svg)](#检测器目录)
 
 <a href="README.md">🇬🇧 English</a> &nbsp;·&nbsp;
@@ -31,9 +31,11 @@
 - [重叠消解](#重叠消解)
 - [校验算法](#校验算法)
 - [策略与可逆性](#策略与可逆性)
+- [预设与结构化输入](#预设与结构化输入)
 - [指标](#指标)
 - [隐私模型](#隐私模型)
 - [安装 / 使用 / API](#安装)
+- [集成](#集成)
 - [测试](#测试)
 
 ## 流程
@@ -74,13 +76,16 @@ flowchart TD
 |------|------|-----:|
 | `engine.py` | 编排、重叠消解、报告 | ~140 |
 | `detectors/base.py` | `Finding`、正则与上下文检测器 | ~140 |
-| `detectors/{regex_intl,ru,extra,secrets,addresses,names}.py` | 75 个检测器 | ~600 |
+| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | 75 个检测器 | ~900 |
 | `detectors/{ml,gliner}_plugin.py` | 可选的惰性 ML 适配器 | ~200 |
-| `validators.py` | Luhn / INN / SNILS / IBAN / OGRN 校验 | ~110 |
-| `masking.py` | 稳定的类型化占位符分配 | ~60 |
-| `config.py` · `api.py` · `cli.py` | 配置、公共 API、CLI | ~340 |
+| `validators.py` · `validators_intl.py` | Luhn / INN / IBAN / Verhoeff / mod-11/97 | ~280 |
+| `strategies.py` · `formats.py` · `masking.py` | 策略、假名、占位符 | ~250 |
+| `compliance.py` · `taxonomy.py` · `presets.py` | 严重度、法规、预设 | ~180 |
+| `structured.py` · `normalize.py` · `streaming.py` · `batch.py` | 结构化/规范化/扩展 | ~280 |
+| `integrations/*` | MCP、HTTP、日志过滤器 | ~250 |
+| `config.py` · `api.py` · `cli.py` | 配置、公共 API、CLI | ~600 |
 
-<sub>* 核心合计：<b>1665</b> 行、21 个文件；测试：<b>4725</b> 行、18 个文件。</sub>
+<sub>* 核心合计：<b>3400+</b> 行、37 个文件；测试：<b>17000+</b> 行、65 个文件。</sub>
 
 ## 检测器目录
 
@@ -120,9 +125,26 @@ flowchart TD
 | `btc_address` | BTC_ADDRESS | 0.78 | base58 / bech32 |
 | `names` | PERSON | 启发式 | 父称 · 上下文 · 词典配对 |
 
-**密钥**（0.90–0.99，具备可辨识前缀）
+**国际 ID**（除注明外均经校验和验证）
 
-`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `sendgrid_key` `jwt` `private_key` `password` `secret_assignment`
+| 检测器 | 类型 | conf | 校验 |
+|--------|------|:----:|------|
+| `aadhaar`（印度） | AADHAAR | 0.90 | Verhoeff |
+| `pan_in`（印度） | PAN_IN | 0.85 | 形态 `AAAAA9999A` |
+| `china_id` | CHINA_ID | 0.88 | mod-11 |
+| `codice_fiscale`（IT） | CODICE_FISCALE | 0.90 | 校验字符 |
+| `fr_nir`（法国） | FR_NIR | 0.88 | mod-97 |
+| `dni_es` / `nie_es`（ES） | DNI_ES / NIE_ES | 0.80 | 校验字母 |
+| `nhs_uk` | NHS_UK | 0.50→0.92 | mod-11，上下文 |
+| `pesel_pl` `de_taxid` `aba_us` `us_passport` `us_itin` `uk_sort_code` `china_mobile` | … | 0.40–0.50→0.90+ | 上下文相关 |
+
+**网络 / 基础设施**
+
+`url_credentials`（屏蔽 `scheme://…@` 中的 `user:pass`）· `aws_arn` · `geo_coord`（上下文相关）。
+
+**密钥**（0.85–0.99，具备可辨识前缀）
+
+`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `sendgrid_key` `twilio_sid` `mailgun_key` `telegram_bot` `discord_token` `ssh_pubkey` `jwt` `private_key` `password` `secret_assignment`
 
 **可选**（默认关闭）：`high_entropy`（0.75）、`names_aggressive`（单个名字）、`ml`（Presidio）、`gliner`（ONNX NER）。
 
@@ -195,6 +217,36 @@ r.restore()     # 'card 4111 1111 1111 1111'  — 精确逆变换
 CLI：`datashield redact --strategy pseudonym --vault v.json`，然后
 `… | datashield restore --vault v.json`。vault 保存原始值——请保存在本地。
 
+## 预设与结构化输入
+
+**合规预设**将检测限制为某一法规所关注的类型：
+
+| 预设 | 范围 |
+|------|------|
+| `pci-dss` | 金融 + 密钥 |
+| `hipaa` | 健康 + 人名 + 政府 ID + 联系方式 |
+| `gdpr` | 广义个人数据 |
+| `secrets-only` | 密钥/令牌/密码 |
+| `ru-gov` | 俄罗斯政府要件 |
+| `minimal` | 仅置信度 ≥ 0.9 |
+
+```bash
+datashield redact --preset pci-dss          # 仅屏蔽卡号与密钥
+datashield redact --min-severity critical   # 仅屏蔽关键类型
+```
+
+每个类型都有**类别**与**严重度**（low/medium/high/critical），它们显示在
+`datashield detectors`、`scan --json` 以及审计报告中，并可通过 `--min-severity` 使用。
+
+**结构化输入**在保持结构不变的前提下屏蔽值——既按检测器，
+*也*按敏感的键/列名（`password`、`token`、`ssn`、…）：
+
+```bash
+echo '{"name":"Ivan","password":"hunter2","age":30}' | datashield redact --format json-data
+# {"name":"[PERSON_1]","password":"[REDACTED]","age":30}
+datashield redact --format csv --in people.csv     # 敏感列 + 逐单元格检测
+```
+
 ## 指标
 
 单核，Python 3.14，热进程。吞吐随输入大小线性变化并稳定在 **~1.05 MB/s**；冷启动（导入 → 首次 redact）**~15 毫秒**（相比加载 ML 模型需数秒）。
@@ -227,23 +279,31 @@ xychart-beta
 | 指标 | 值 |
 |------|----|
 | 检测器 / 类型 | 75 / 68 |
-| 默认开启 | 48 |
+| 默认开启 | 71 |
+| **精确率 / 召回率 / F1** | **1.00 / 1.00 / 1.00**（带标注的评测语料，0 误报） |
 | 冷启动 | ~15 毫秒 |
 | 吞吐 | ~1.05 MB/s |
-| 测试 | **701**（标准库 unittest），Python 3.9–3.13 全绿 |
-| 测试耗时 | ~6.1 秒 |
-| 运行时依赖 | **0** |
-| 核心规模 | 1665 行 / 21 文件 |
+| 测试 | **1956**（标准库 unittest），Python 3.9–3.13 全绿 |
+| <a name="footprint"></a>运行时依赖 | **0** |
 
-检测器经过并行对抗审计（13 个智能体）：发现并修复了 13 个精确率/召回率/DoS 问题，每个都由回归测试锁定（`tests/test_adversarial_regression.py`）。
+质量是测量出来的，而非断言出来的：`tools/eval/evaluate.py` 在带标注的语料
+（`tools/eval/corpus.jsonl`，正例 + 诱饵）上运行引擎，而
+`tests/test_eval_metrics.py` 在 CI 中要求精确率/召回率/F1 ≥ 0.95。版本字符串
+（`1.2.3.4`）与长 OID 会被 IPv4 检测器抑制。语料之外已知的固有歧义
+（独立的 4 段 OID，或被拆成冒号分隔十六进制对的哈希）仍可能被过度
+屏蔽为 IP/MAC——这是表象问题，绝不会造成泄漏。
+
+检测器经由并行对抗审计加固：精确率 / 召回率 / DoS 问题
+（包括两处 ReDoS）被发现并修复，每个都由回归测试锁定
+（`tests/test_adversarial_regression.py`）。
 
 ## 隐私模型
 
 ```mermaid
 flowchart LR
-  V["original value"] -->|in memory only| PH["placeholder TYPE_n"]
+  V["original value"] -->|in memory only| PH["placeholder [TYPE_n]"]
   V -. "--report only" .-> H["salted SHA-256<br/>(truncated)"]
-  V -.->|never persisted| X["disk x / network x"]
+  V -.->|never persisted| X["disk ✗ / network ✗"]
 ```
 
 - 单向脱敏——无还原路径，无保险库。
@@ -265,7 +325,7 @@ python3 -m datashield redact --in input.txt
 echo "我的邮箱 a@b.com, INN 7707083893" | datashield redact   # -> [EMAIL_1], INN [INN_1]
 datashield scan  --in f.txt        # 命中，不脱敏
 datashield stats --in f.txt        # 按类型计数
-datashield detectors               # 列出全部 52 个
+datashield detectors               # 列出全部 75 个
 ```
 
 参数：`--in/--out` · `--only T1,T2` · `--exclude T` · `--min-confidence X` · `--json` · `--report audit.json` · `--config path`。
@@ -286,11 +346,36 @@ redact("phone +7 909 123 45 67").masked_text   # 'phone [PHONE_RU_1]'
   "custom_patterns": [{"name":"employee_id","type":"EMPLOYEE_ID","pattern":"EMP-\\d{6}","confidence":0.9}] }
 ```
 
+## 集成
+
+全部基于标准库，无额外依赖。
+
+```bash
+datashield mcp                      # MCP 服务器（stdio）——智能体调用 redact/scan
+datashield serve --port 8765        # HTTP：POST /redact, /scan ; GET /health
+datashield check  path/to/files     # 若发现敏感数据则以 1 退出（CI 门禁）
+```
+
+```python
+# 屏蔽应用日志中的敏感数据
+import logging
+from datashield.integrations.logging_filter import RedactingFilter
+logging.getLogger().addFilter(RedactingFilter())
+```
+
+- **MCP：** 将 `datashield mcp`（或 `datashield-mcp` 入口点）注册为 MCP
+  服务器；它暴露 `redact` 与 `scan` 工具，使任何智能体在数据到达外部模型之前
+  对其脱敏。
+- **pre-commit：** 把本仓库作为钩子加入（`.pre-commit-hooks.yaml`，id
+  `data-shield-ai`），以阻止包含 PII/密钥的提交。
+- **GitHub Action：** `action.yml` 扫描仓库，并在发现命中时使构建失败。
+
 ## 测试
 
 ```bash
-python3 -m unittest discover -s tests -t .     # 701 个测试
+python3 -m unittest discover -s tests -t .     # 1956 个测试
 python3 tools/benchmark.py                      # 吞吐
+python3 tools/eval/evaluate.py                  # 语料上的精确率/召回率
 ```
 
 ## 许可证

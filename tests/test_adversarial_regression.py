@@ -108,6 +108,30 @@ class ReDoSRegressions(unittest.TestCase):
         self.assertLess(time.perf_counter() - t0, 0.5)
 
 
+class PseudonymLeakRegressions(unittest.TestCase):
+    """Псевдоним секрета НЕ должен сохранять буквы оригинала (утечка)."""
+
+    def test_pseudonym_secret_no_letter_leak(self):
+        from datashield import redact
+
+        secret = "AKIAIOSFODNN7EXAMPLE"
+        masked = redact("key " + secret, strategy="pseudonym").masked_text
+        fake = masked.split("key ", 1)[1]
+        self.assertEqual(len(fake), len(secret))   # длина сохранена
+        self.assertNotEqual(fake, secret)
+        # буквенный костяк оригинала не утёк
+        orig_letters = "".join(c for c in secret if c.isalpha())
+        self.assertNotIn(orig_letters, fake)
+
+    def test_pseudonym_card_still_format_preserving(self):
+        from datashield import redact
+        from datashield.validators import luhn_check
+
+        masked = redact("card 4111 1111 1111 1111", strategy="pseudonym").masked_text
+        digits = "".join(c for c in masked if c.isdigit())
+        self.assertTrue(luhn_check(digits))  # фейк-карта валидна по Луну
+
+
 class FalsePositiveSuppressionTests(unittest.TestCase):
     """Подавление FP, найденных адверсариал-аудитом Блока F."""
 

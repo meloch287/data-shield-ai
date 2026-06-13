@@ -1,7 +1,8 @@
 """Загрузка и представление конфигурации.
 
-Формат — JSON (`.datashield.json`), а не TOML: json есть в stdlib любой версии
-Python, поэтому навык остаётся без зависимостей даже на 3.9/3.10.
+По умолчанию JSON (`.datashield.json`) — json есть в stdlib любой версии Python.
+TOML (`.datashield.toml`) поддерживается на Python 3.11+ через встроенный
+tomllib; на 3.9/3.10 TOML недоступен (ясная ошибка). Зависимостей нет.
 """
 from __future__ import annotations
 

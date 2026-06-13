@@ -7,7 +7,7 @@ Local PII/secret redaction layer. Masks confidential data before text leaves the
 [![CI](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/meloch287/data-shield-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-701%20passing-success.svg)](#tests)
+[![Tests](https://img.shields.io/badge/tests-1956%20passing-success.svg)](#tests)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
 [![Detectors](https://img.shields.io/badge/detectors-75-orange.svg)](#detector-catalog)
 
@@ -76,13 +76,16 @@ flowchart TD
 |--------|----------------|-----:|
 | `engine.py` | orchestration, overlap resolution, report | ~140 |
 | `detectors/base.py` | `Finding`, regex + keyword-context detectors | ~140 |
-| `detectors/{regex_intl,ru,extra,secrets,addresses,names}.py` | the 75 detectors | ~600 |
+| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | the 75 detectors | ~900 |
 | `detectors/{ml,gliner}_plugin.py` | optional lazy ML adapters | ~200 |
-| `validators.py` | Luhn / INN / SNILS / IBAN / OGRN checks | ~110 |
-| `masking.py` | stable typed placeholder allocation | ~60 |
-| `config.py` · `api.py` · `cli.py` | config, public API, CLI | ~340 |
+| `validators.py` · `validators_intl.py` | Luhn / INN / IBAN / Verhoeff / mod-11/97 | ~280 |
+| `strategies.py` · `formats.py` · `masking.py` | strategies, pseudonyms, placeholders | ~250 |
+| `compliance.py` · `taxonomy.py` · `presets.py` | severity, regulations, presets | ~180 |
+| `structured.py` · `normalize.py` · `streaming.py` · `batch.py` | structured/normalize/scale | ~280 |
+| `integrations/*` | MCP, HTTP, logging filter | ~250 |
+| `config.py` · `api.py` · `cli.py` | config, public API, CLI | ~600 |
 
-<sub>* core total: <b>1665</b> lines across 21 files; tests: <b>4725</b> lines across 18 files.</sub>
+<sub>* core total: <b>3400+</b> lines across 37 files; tests: <b>17000+</b> lines across 65 files.</sub>
 
 ## Detector catalog
 
@@ -281,7 +284,7 @@ xychart-beta
 | **Precision / Recall / F1** | **1.00 / 1.00 / 1.00** (labeled eval corpus, 0 FP) |
 | Cold start | ~15 ms |
 | Throughput | ~1.05 MB/s |
-| Tests | **1540+** (stdlib unittest), green on Python 3.9–3.13 |
+| Tests | **1956** (stdlib unittest), green on Python 3.9–3.13 |
 | <a name="footprint"></a>Runtime dependencies | **0** |
 
 Quality is measured, not asserted: `tools/eval/evaluate.py` runs the engine over a
@@ -323,7 +326,7 @@ python3 -m datashield redact --in input.txt
 echo "my email a@b.com, INN 7707083893" | datashield redact   # -> [EMAIL_1], INN [INN_1]
 datashield scan  --in f.txt        # findings, no masking
 datashield stats --in f.txt        # counts by type
-datashield detectors               # list all 52
+datashield detectors               # list all 75
 ```
 
 Flags: `--in/--out` · `--only T1,T2` · `--exclude T` · `--min-confidence X` · `--json` · `--report audit.json` · `--config path`.
@@ -371,7 +374,7 @@ logging.getLogger().addFilter(RedactingFilter())
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -t .     # 1540+ tests
+python3 -m unittest discover -s tests -t .     # 1956 tests
 python3 tools/benchmark.py                      # throughput
 python3 tools/eval/evaluate.py                  # precision/recall on the corpus
 ```
