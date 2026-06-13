@@ -142,7 +142,7 @@ def validate_vin(value: str) -> bool:
         return False
     try:
         total = sum(_VIN_TRANSLIT[s[i]] * _VIN_WEIGHTS[i] for i in range(17))
-    except KeyError:
+    except KeyError:  # pragma: no cover - regex выше гарантирует наличие ключей
         return False
     rem = total % 11
     expected = "X" if rem == 10 else str(rem)

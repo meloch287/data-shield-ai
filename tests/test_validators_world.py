@@ -21,6 +21,7 @@ from datashield.validators_world import (
     validate_rrn_kr,
     validate_sin_ca,
     validate_tfn_au,
+    validate_tron,
     validate_vin,
 )
 
@@ -262,6 +263,36 @@ class VinTests(unittest.TestCase):
         self.assertFalse(validate_vin("1HGBH41JIMN109186"))  # I вместо X
         self.assertFalse(validate_vin("1HGBH41JOMN109186"))  # O
         self.assertFalse(validate_vin("1HGBH41JQMN109186"))  # Q
+
+
+class TronValidatorTests(unittest.TestCase):
+    VALID = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"  # реальный mainnet-адрес
+
+    def test_valid_known_address(self):
+        self.assertTrue(validate_tron(self.VALID))
+
+    def test_wrong_prefix(self):
+        # Не начинается с 'T' → отвергается до декодирования.
+        self.assertFalse(validate_tron("X" + self.VALID[1:]))
+
+    def test_wrong_length(self):
+        self.assertFalse(validate_tron(self.VALID[:-1]))   # 33 символа
+        self.assertFalse(validate_tron(self.VALID + "a"))  # 35 символов
+
+    def test_char_outside_base58_alphabet(self):
+        # '0', 'O', 'I', 'l' не входят в алфавит base58 → ValueError → False.
+        self.assertFalse(validate_tron("T0" + self.VALID[2:]))
+        self.assertFalse(validate_tron("TO" + self.VALID[2:]))
+
+    def test_broken_checksum_is_rejected(self):
+        # Меняем последний символ → double-SHA256 не сходится.
+        bad = self.VALID[:-1] + ("X" if self.VALID[-1] != "X" else "Y")
+        self.assertFalse(validate_tron(bad))
+
+    def test_wrong_version_or_decoded_length(self):
+        # Структурно похоже (T + 33 base58), но не настоящий адрес сети TRON:
+        # декодируется в неверную длину/версию → отвергается.
+        self.assertFalse(validate_tron("T" + "1" * 33))
 
 
 class CatalogIntegrationTests(unittest.TestCase):

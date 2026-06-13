@@ -383,12 +383,16 @@ class ReportConsistencyTests(unittest.TestCase):
 
     def test_report_does_not_leak_raw_values(self):
         # В отчёте только хеши и маск-превью, сырых значений быть не должно.
+        # Иглы — ПОЛНЫЕ сырые значения: короткий фрагмент («4111») случайно
+        # встречается в hex солёного SHA-256 (например 'b84111add') и даёт
+        # ложный провал, хотя карта не утекла.
         result = redact(LETTER)
         report = result.report()
         blob = repr(report)
         self.assertNotIn("ivan.petrov@example.com", blob)
         self.assertNotIn("7707083893", blob)
-        self.assertNotIn("4111", blob)
+        self.assertNotIn("4111 1111 1111 1111", blob)
+        self.assertNotIn("4111111111111111", blob)
 
     def test_report_entry_fields_present(self):
         result = redact(ANKETA)
