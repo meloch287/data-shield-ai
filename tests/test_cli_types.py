@@ -57,6 +57,10 @@ def _regs_field(type_name):
 
 
 CATALOG_TYPES = sorted({i.detector.type for i in registry.build_catalog(Config())})
+# Базовое число типов каталога, вычисленное в момент запуска тестов, чтобы
+# ассерты не ломались при добавлении новых детекторов.
+TYPE_COUNT = len(CATALOG_TYPES)
+DETECTOR_COUNT = len(registry.build_catalog(Config()))
 
 
 class TypesCommandBasicTests(unittest.TestCase):
@@ -71,10 +75,11 @@ class TypesCommandBasicTests(unittest.TestCase):
         self.assertTrue(out.strip())
 
     def test_one_line_per_catalog_type(self):
-        # 68 типов в каталоге по умолчанию → ровно 68 непустых строк.
+        # По одной непустой строке на каждый тип каталога (число вычисляется
+        # из живого каталога, а не зашито константой).
         _, out = _run_types()
         rows = _parsed_lines(out)
-        self.assertEqual(len(rows), 68)
+        self.assertEqual(len(rows), TYPE_COUNT)
 
     def test_line_count_matches_catalog(self):
         # Привязка к фактическому каталогу, а не к «магическому» числу.
@@ -290,20 +295,20 @@ class TypesPluginDiscoveryTests(unittest.TestCase):
         def good_builder():
             return [RegexDetector("acme", "ACME_TOKEN", r"ACME-\d+", 0.95)]
 
-        # Базовая длина (без плагина) — 68.
+        # Базовая длина (без плагина) — TYPE_COUNT; плагин добавляет один тип.
         _md.entry_points = self._make_eps([(good_builder, "acme")])
         _, out = _run_types()
-        self.assertEqual(len(_parsed_lines(out)), 69)
+        self.assertEqual(len(_parsed_lines(out)), TYPE_COUNT + 1)
 
     def test_broken_entry_point_is_skipped(self):
         def broken_builder():
             raise RuntimeError("плагин сломан")
 
         _md.entry_points = self._make_eps([(broken_builder, "broken")])
-        # Команда не падает и печатает ровно дефолтные 68 строк.
+        # Команда не падает и печатает ровно дефолтные TYPE_COUNT строк.
         code, out = _run_types()
         self.assertEqual(code, 0)
-        self.assertEqual(len(_parsed_lines(out)), 68)
+        self.assertEqual(len(_parsed_lines(out)), TYPE_COUNT)
 
     def test_broken_does_not_block_good(self):
         def good_builder():
@@ -327,8 +332,8 @@ class TypesPluginDiscoveryTests(unittest.TestCase):
 
         _md.entry_points = self._make_eps([(broken_builder, "broken")])
         catalog = registry.build_catalog(Config())
-        # 75 детекторов по умолчанию (сломанный плагин не добавлен).
-        self.assertEqual(len(catalog), 75)
+        # Дефолтное число детекторов (сломанный плагин не добавлен).
+        self.assertEqual(len(catalog), DETECTOR_COUNT)
 
 
 if __name__ == "__main__":

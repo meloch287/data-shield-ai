@@ -94,6 +94,26 @@ def build() -> List[RegexDetector]:
             0.85, prefilter="ssh-",
         ),
         RegexDetector(
+            "stripe_webhook", "STRIPE_WEBHOOK", r"\bwhsec_[A-Za-z0-9]{32,}\b",
+            0.92, prefilter="whsec_",
+        ),
+        RegexDetector(
+            "hashicorp_vault", "VAULT_TOKEN", r"\bhvs\.[A-Za-z0-9_\-]{24,}\b",
+            0.9, prefilter="hvs.",
+        ),
+        RegexDetector(
+            "doppler_token", "DOPPLER_TOKEN", r"\bdp\.(?:st|pt|ct)\.[A-Za-z0-9]{40,}\b",
+            0.9, prefilter="dp.",
+        ),
+        RegexDetector(
+            "planetscale_token", "PLANETSCALE_TOKEN", r"\bpscale_(?:pw|tkn)_[A-Za-z0-9_\-]{32,}\b",
+            0.9, prefilter="pscale_",
+        ),
+        RegexDetector(
+            "linear_token", "LINEAR_TOKEN", r"\blin_api_[A-Za-z0-9]{40,}\b",
+            0.9, prefilter="lin_api_",
+        ),
+        RegexDetector(
             "google_api_key", "GOOGLE_API_KEY", r"\bAIza[0-9A-Za-z\-_]{35}\b",
             0.95, prefilter="AIza",
         ),

@@ -24,10 +24,12 @@ _BY_CATEGORY: Dict[str, Set[str]] = {
         "KPP", "US_SSN", "US_EIN", "UK_NINO", "US_ITIN", "US_PASSPORT",
         "AADHAAR", "PAN_IN", "CHINA_ID", "CODICE_FISCALE", "FR_NIR",
         "DNI_ES", "NIE_ES", "PESEL", "DE_TAX_ID",
+        "CPF_BR", "CNPJ_BR", "SIN_CA", "TFN_AU", "MYNUMBER_JP", "RRN_KR",
+        "CURP_MX", "VIN",
     },
     "financial": {"CREDIT_CARD", "IBAN", "BANK_ACCOUNT", "BIC", "ABA_ROUTING", "UK_SORT_CODE"},
     "health": {"OMS_POLICY", "NHS_UK"},
-    "crypto": {"ETH_ADDRESS", "BTC_ADDRESS"},
+    "crypto": {"ETH_ADDRESS", "BTC_ADDRESS", "TRON_ADDRESS", "SOLANA_ADDRESS"},
     "network": {"IP", "MAC", "AWS_ARN"},
     "secret": {
         "AWS_ACCESS_KEY", "AWS_SECRET_KEY", "ANTHROPIC_KEY", "OPENAI_KEY",
@@ -36,6 +38,8 @@ _BY_CATEGORY: Dict[str, Set[str]] = {
         "GOOGLE_API_KEY", "SLACK_TOKEN", "STRIPE_KEY", "SENDGRID_KEY",
         "TWILIO_SID", "MAILGUN_KEY", "TELEGRAM_BOT_TOKEN", "DISCORD_TOKEN",
         "SSH_PUBKEY", "JWT", "PRIVATE_KEY", "PASSWORD", "SECRET", "URL_CREDENTIALS",
+        "STRIPE_WEBHOOK", "VAULT_TOKEN", "DOPPLER_TOKEN", "PLANETSCALE_TOKEN",
+        "LINEAR_TOKEN",
     },
 }
 

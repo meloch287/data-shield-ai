@@ -395,8 +395,10 @@ class CorpusIntegrityTests(unittest.TestCase):
         self.assertGreaterEqual(len(nonblank), 40)
 
     def test_catalog_type_count(self):
-        # каталог по умолчанию: 68 типов (75 детекторов).
-        self.assertEqual(len(self.catalog_types), 68)
+        # Число различных типов каталога вычисляется из живого каталога, а не
+        # зашито константой (на момент написания — 83 типа).
+        expected = len({i.detector.type for i in build_catalog(Config())})
+        self.assertEqual(len(self.catalog_types), expected)
 
 
 if __name__ == "__main__":

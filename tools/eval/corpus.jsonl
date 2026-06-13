@@ -28,6 +28,9 @@
 {"text": "живёт на проспекте Мира 12", "types": ["ADDRESS"]}
 {"text": "кошелёк 0x52908400098527886E0F7030069857D2E4169EE7", "types": ["ETH_ADDRESS"]}
 {"text": "db postgres://user:secretpass@host:5432/db", "types": ["URL_CREDENTIALS"]}
+{"text": "VIN 1HGBH41JXMN109186 в ПТС", "types": ["VIN"]}
+{"text": "주민등록번호 9001013100003", "types": ["RRN_KR"]}
+{"text": "перевод на TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "types": ["TRON_ADDRESS"]}
 {"text": "Иван Петров, email ivan@example.com, ИНН 7707083893", "types": ["EMAIL", "INN", "PERSON"]}
 {"text": "карта 5500005555555559, тел +7 916 000 11 22", "types": ["CREDIT_CARD", "PHONE_RU"]}
 {"text": "Клиент maria@example.com по адресу ул. Гагарина 3", "types": ["ADDRESS", "EMAIL"]}
@@ -41,6 +44,9 @@
 {"text": "Mark Down the price now", "types": []}
 {"text": "Шоссе было пустым совсем", "types": []}
 {"text": "число 7707083893 просто так", "types": []}
+{"text": "артикул 1HGBH41JXMN109186 на полке", "types": []}
+{"text": "заказ 9001013100003 оформлен", "types": []}
+{"text": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6X на стене", "types": []}
 {"text": "Большой Театр на площади", "types": []}
 {"text": "commit 0xabcdef1234567890abcdef1234567890abcdef12 merged", "types": ["ETH_ADDRESS"]}
 {"text": "обычное предложение без каких-либо данных", "types": []}

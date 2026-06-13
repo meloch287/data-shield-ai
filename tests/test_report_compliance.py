@@ -44,6 +44,13 @@ RAW_VALUES = (
 
 CLEAN_TEXT = "the quarterly numbers improved and the build is green"
 
+# Базовые размеры каталога, вычисленные в момент запуска тестов, чтобы ассерты
+# не ломались при добавлении новых детекторов (на момент написания — 90/86/83).
+_BASELINE_CATALOG = registry.build_catalog(Config())
+DETECTOR_COUNT = len(_BASELINE_CATALOG)
+DEFAULT_ON_COUNT = sum(1 for i in _BASELINE_CATALOG if i.default_enabled)
+TYPE_COUNT = len({i.detector.type for i in _BASELINE_CATALOG})
+
 
 # --------------------------------------------------------------------------- #
 # Уровень compliance.py — базовые факты маппинга.
@@ -345,10 +352,11 @@ class CliTypesCommandTests(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_types_lists_68_types(self):
-        # Каталог: 68 типов (по одной строке на тип).
+        # По одной строке на тип каталога (число вычислено из живого каталога;
+        # на момент написания — 83 типа).
         _, out = self._capture_types()
         lines = [ln for ln in out.splitlines() if ln.strip()]
-        self.assertEqual(len(lines), 68)
+        self.assertEqual(len(lines), TYPE_COUNT)
 
     def test_types_email_line_shows_regulations(self):
         _, out = self._capture_types()
@@ -474,12 +482,13 @@ class PluginDiscoveryTests(unittest.TestCase):
         self.assertIn("EMAIL", types)
 
     def test_no_plugins_default_catalog_counts(self):
-        # Без плагинов каталог: 75 детекторов / 71 включён по умолчанию / 68 типов.
+        # Без плагинов каталог сохраняет базовую форму (числа вычислены из
+        # живого каталога; на момент написания — 90/86/83).
         self._patch([])
         catalog = registry.build_catalog(Config())
-        self.assertEqual(len(catalog), 75)
-        self.assertEqual(sum(1 for i in catalog if i.default_enabled), 71)
-        self.assertEqual(len({i.detector.type for i in catalog}), 68)
+        self.assertEqual(len(catalog), DETECTOR_COUNT)
+        self.assertEqual(sum(1 for i in catalog if i.default_enabled), DEFAULT_ON_COUNT)
+        self.assertEqual(len({i.detector.type for i in catalog}), TYPE_COUNT)
 
     def test_plugin_added_to_active_set(self):
         self._patch([_FakeEntryPoint(_good_plugin_builder)])

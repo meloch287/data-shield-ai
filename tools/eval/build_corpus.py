@@ -45,6 +45,25 @@ CARD2 = luhn_complete("550000555555555")
 AADH = aadhaar("23412341234")
 CN_ID = china_id("11010119900307123")
 
+
+def _valid_rrn() -> str:
+    """RRN-валидный, но НЕ OGRN-валидный (13 цифр) — чтобы декой проверял
+    именно keyword-gating RRN, не пересекаясь с OGRN (default-on, 13 цифр)."""
+    from datashield.validators import validate_ogrn
+    from datashield.validators_world import validate_rrn_kr
+
+    base = 9001013100000
+    for n in range(base, base + 100000):
+        candidate = str(n)
+        if validate_rrn_kr(candidate) and not validate_ogrn(candidate):
+            return candidate
+    raise AssertionError
+
+
+RRN = _valid_rrn()
+VIN_OK = "1HGBH41JXMN109186"
+TRON_OK = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+
 # (text, types) — types = полный набор ожидаемых
 EXAMPLES = [
     # --- positives ---
@@ -78,6 +97,9 @@ EXAMPLES = [
     ("живёт на проспекте Мира 12", ["ADDRESS"]),
     ("кошелёк 0x52908400098527886E0F7030069857D2E4169EE7", ["ETH_ADDRESS"]),
     ("db postgres://user:secretpass@host:5432/db", ["URL_CREDENTIALS"]),
+    (f"VIN {VIN_OK} в ПТС", ["VIN"]),
+    (f"주민등록번호 {RRN}", ["RRN_KR"]),
+    (f"перевод на {TRON_OK}", ["TRON_ADDRESS"]),
     # --- multi-type ---
     ("Иван Петров, email ivan@example.com, ИНН 7707083893", ["PERSON", "EMAIL", "INN"]),
     (f"карта {CARD2}, тел +7 916 000 11 22", ["CREDIT_CARD", "PHONE_RU"]),
@@ -93,6 +115,9 @@ EXAMPLES = [
     ("Mark Down the price now", []),
     ("Шоссе было пустым совсем", []),
     ("число 7707083893 просто так", []),    # ИНН-10 без ключевого слова
+    (f"артикул {VIN_OK} на полке", []),     # VIN-валидный, но без ключевого слова
+    (f"заказ {RRN} оформлен", []),           # RRN-валидный, но без ключевого слова
+    ("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6X на стене", []),  # T+33, но checksum не сходится
     ("Большой Театр на площади", []),
     ("commit 0xabcdef1234567890abcdef1234567890abcdef12 merged", ["ETH_ADDRESS"]),
     ("обычное предложение без каких-либо данных", []),

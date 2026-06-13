@@ -31,6 +31,13 @@ from datashield.detectors.base import Finding, RegexDetector
 
 GROUP = "datashield.detectors"
 
+# Базовые размеры встроенного каталога (без плагинов), вычисленные в момент
+# запуска — чтобы ассерты не ломались при добавлении новых детекторов.
+_BASELINE_CATALOG = registry.build_catalog(Config())
+DETECTOR_COUNT = len(_BASELINE_CATALOG)
+DEFAULT_ON_COUNT = sum(1 for i in _BASELINE_CATALOG if i.default_enabled)
+TYPE_COUNT = len({i.detector.type for i in _BASELINE_CATALOG})
+
 
 def _widget_builder():
     """Builder, возвращающий один кастомный RegexDetector."""
@@ -123,9 +130,9 @@ class NoPluginsTests(unittest.TestCase):
 
     def test_catalog_counts_unchanged(self):
         cat = registry.build_catalog(Config())
-        self.assertEqual(len(cat), 75)
-        self.assertEqual(sum(1 for c in cat if c.default_enabled), 71)
-        self.assertEqual(len({c.detector.type for c in cat}), 68)
+        self.assertEqual(len(cat), DETECTOR_COUNT)
+        self.assertEqual(sum(1 for c in cat if c.default_enabled), DEFAULT_ON_COUNT)
+        self.assertEqual(len({c.detector.type for c in cat}), TYPE_COUNT)
 
 
 # --- Новая форма API: .select(group=) ---------------------------------------
@@ -160,8 +167,8 @@ class SelectApiPluginTests(_PatchEntryPointsMixin, unittest.TestCase):
         self.assertTrue(info.enabled)
 
     def test_plugin_grows_catalog_by_one(self):
-        # 75 встроенных + 1 плагин.
-        self.assertEqual(len(registry.build_catalog(Config())), 76)
+        # Встроенные детекторы + 1 плагин.
+        self.assertEqual(len(registry.build_catalog(Config())), DETECTOR_COUNT + 1)
 
     def test_plugin_in_active_set(self):
         actives = registry.build_active(Config())
@@ -316,7 +323,7 @@ class AllPluginsBrokenTests(_PatchEntryPointsMixin, unittest.TestCase):
         self.assertEqual(registry._plugin_detectors(), [])
 
     def test_catalog_back_to_baseline(self):
-        self.assertEqual(len(registry.build_catalog(Config())), 75)
+        self.assertEqual(len(registry.build_catalog(Config())), DETECTOR_COUNT)
 
     def test_builtin_scan_unaffected(self):
         types = {f.type for f in scan("user@example.com")}
@@ -341,7 +348,7 @@ class DiscoveryFailureTests(_PatchEntryPointsMixin, unittest.TestCase):
         self.assertEqual(registry._plugin_detectors(), [])
 
     def test_build_catalog_unaffected(self):
-        self.assertEqual(len(registry.build_catalog(Config())), 75)
+        self.assertEqual(len(registry.build_catalog(Config())), DETECTOR_COUNT)
 
 
 class SelectRaisesTests(_PatchEntryPointsMixin, unittest.TestCase):

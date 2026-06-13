@@ -9,7 +9,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-1956%20passing-success.svg)](#测试)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
-[![Detectors](https://img.shields.io/badge/detectors-75-orange.svg)](#检测器目录)
+[![Detectors](https://img.shields.io/badge/detectors-90-orange.svg)](#检测器目录)
 
 <a href="README.md">🇬🇧 English</a> &nbsp;·&nbsp;
 <a href="README.ru.md">🇷🇺 Русский</a> &nbsp;·&nbsp;
@@ -22,7 +22,7 @@
 输出   →   [PERSON_1], INN [INN_1], 卡号 [CREDIT_CARD_1], 密钥 [AWS_ACCESS_KEY_1]
 ```
 
-纯 Python 标准库，零依赖，不联网。75 个检测器，68 种数据类型。同一值 → 同一占位符；原始值不写入磁盘。
+纯 Python 标准库，零依赖，不联网。90 个检测器，83 种数据类型。同一值 → 同一占位符；原始值不写入磁盘。
 
 - [流程](#流程)
 - [架构](#架构)
@@ -42,7 +42,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph DET["75 detectors run independently"]
+  subgraph DET["90 detectors run independently"]
     direction TB
     RX["regex + checksum validators"]
     KW["keyword-context base/boost"]
@@ -76,7 +76,7 @@ flowchart TD
 |------|------|-----:|
 | `engine.py` | 编排、重叠消解、报告 | ~140 |
 | `detectors/base.py` | `Finding`、正则与上下文检测器 | ~140 |
-| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | 75 个检测器 | ~900 |
+| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | 90 个检测器 | ~900 |
 | `detectors/{ml,gliner}_plugin.py` | 可选的惰性 ML 适配器 | ~200 |
 | `validators.py` · `validators_intl.py` | Luhn / INN / IBAN / Verhoeff / mod-11/97 | ~280 |
 | `strategies.py` · `formats.py` · `masking.py` | 策略、假名、占位符 | ~250 |
@@ -89,7 +89,7 @@ flowchart TD
 
 ## 检测器目录
 
-75 个检测器 → 68 种占位符类型。`conf` = 置信度；`a→b` = 当上下文（25 字符窗口）中出现关键词时由基线提升。低于默认阈值 `0.70` 的命中会被丢弃，因此上下文相关的 ID 不会在裸数字上触发。
+90 个检测器 → 83 种占位符类型。`conf` = 置信度；`a→b` = 当上下文（25 字符窗口）中出现关键词时由基线提升。低于默认阈值 `0.70` 的命中会被丢弃，因此上下文相关的 ID 不会在裸数字上触发。
 
 **国际**
 
@@ -278,8 +278,8 @@ xychart-beta
 
 | 指标 | 值 |
 |------|----|
-| 检测器 / 类型 | 75 / 68 |
-| 默认开启 | 71 |
+| 检测器 / 类型 | 90 / 83 |
+| 默认开启 | 86 |
 | **精确率 / 召回率 / F1** | **1.00 / 1.00 / 1.00**（带标注的评测语料，0 误报） |
 | 冷启动 | ~15 毫秒 |
 | 吞吐 | ~1.05 MB/s |

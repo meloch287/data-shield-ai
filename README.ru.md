@@ -9,7 +9,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-1956%20passing-success.svg)](#тесты)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
-[![Detectors](https://img.shields.io/badge/detectors-75-orange.svg)](#каталог-детекторов)
+[![Detectors](https://img.shields.io/badge/detectors-90-orange.svg)](#каталог-детекторов)
 
 <a href="README.md">🇬🇧 English</a> &nbsp;·&nbsp;
 <a href="README.ru.md"><b>🇷🇺 Русский</b></a> &nbsp;·&nbsp;
@@ -22,7 +22,7 @@
 выход  →   [PERSON_1], ИНН [INN_1], карта [CREDIT_CARD_1], ключ [AWS_ACCESS_KEY_1]
 ```
 
-Чистый Python stdlib, без зависимостей, без сети. 75 детекторов, 68 типов данных. Одно значение → один плейсхолдер; оригиналы не пишутся на диск.
+Чистый Python stdlib, без зависимостей, без сети. 90 детекторов, 83 типов данных. Одно значение → один плейсхолдер; оригиналы не пишутся на диск.
 
 - [Конвейер](#конвейер)
 - [Архитектура](#архитектура)
@@ -42,7 +42,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph DET["75 detectors run independently"]
+  subgraph DET["90 detectors run independently"]
     direction TB
     RX["regex + checksum validators"]
     KW["keyword-context base/boost"]
@@ -76,7 +76,7 @@ flowchart TD
 |--------|-----------------|-----:|
 | `engine.py` | оркестрация, разбор пересечений, отчёт | ~140 |
 | `detectors/base.py` | `Finding`, regex- и context-детекторы | ~140 |
-| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | 75 детекторов | ~900 |
+| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | 90 детекторов | ~900 |
 | `detectors/{ml,gliner}_plugin.py` | опциональные ленивые ML-адаптеры | ~200 |
 | `validators.py` · `validators_intl.py` | Luhn / ИНН / IBAN / Верхофф / mod-11/97 | ~280 |
 | `strategies.py` · `formats.py` · `masking.py` | стратегии, псевдонимы, плейсхолдеры | ~250 |
@@ -89,7 +89,7 @@ flowchart TD
 
 ## Каталог детекторов
 
-75 детекторов → 68 типов плейсхолдеров. `conf` = уверенность; `a→b` = база→буст при ключевом слове в контексте (окно 25 символов). Ниже порога по умолчанию `0.70` находка отбрасывается, поэтому контекстно-зависимые ID не срабатывают на голых числах.
+90 детекторов → 83 типов плейсхолдеров. `conf` = уверенность; `a→b` = база→буст при ключевом слове в контексте (окно 25 символов). Ниже порога по умолчанию `0.70` находка отбрасывается, поэтому контекстно-зависимые ID не срабатывают на голых числах.
 
 **Международные**
 
@@ -279,8 +279,8 @@ xychart-beta
 
 | метрика | значение |
 |---------|----------|
-| Детекторов / типов | 75 / 68 |
-| Включено по умолчанию | 71 |
+| Детекторов / типов | 90 / 83 |
+| Включено по умолчанию | 86 |
 | **Точность / Полнота / F1** | **1.00 / 1.00 / 1.00** (размеченный эталонный корпус, 0 FP) |
 | Холодный старт | ~15 мс |
 | Пропускная способность | ~1.05 MB/с |

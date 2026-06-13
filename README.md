@@ -9,7 +9,7 @@ Local PII/secret redaction layer. Masks confidential data before text leaves the
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-1956%20passing-success.svg)](#tests)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#footprint)
-[![Detectors](https://img.shields.io/badge/detectors-75-orange.svg)](#detector-catalog)
+[![Detectors](https://img.shields.io/badge/detectors-90-orange.svg)](#detector-catalog)
 
 <a href="README.md"><b>🇬🇧 English</b></a> &nbsp;·&nbsp;
 <a href="README.ru.md">🇷🇺 Русский</a> &nbsp;·&nbsp;
@@ -22,7 +22,7 @@ in   →   Ivan Petrov, INN 7707083893, card 4111 1111 1111 1111, key AKIAIOSFOD
 out  →   [PERSON_1], INN [INN_1], card [CREDIT_CARD_1], key [AWS_ACCESS_KEY_1]
 ```
 
-Pure Python stdlib, no dependencies, no network. 75 detectors, 68 data types. Same value → same placeholder; originals never written to disk.
+Pure Python stdlib, no dependencies, no network. 90 detectors, 83 data types. Same value → same placeholder; originals never written to disk.
 
 - [Pipeline](#pipeline)
 - [Architecture](#architecture)
@@ -42,7 +42,7 @@ Pure Python stdlib, no dependencies, no network. 75 detectors, 68 data types. Sa
 
 ```mermaid
 flowchart LR
-  subgraph DET["75 detectors run independently"]
+  subgraph DET["90 detectors run independently"]
     direction TB
     RX["regex + checksum validators"]
     KW["keyword-context base/boost"]
@@ -76,7 +76,7 @@ flowchart TD
 |--------|----------------|-----:|
 | `engine.py` | orchestration, overlap resolution, report | ~140 |
 | `detectors/base.py` | `Finding`, regex + keyword-context detectors | ~140 |
-| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | the 75 detectors | ~900 |
+| `detectors/{regex_intl,ru,extra,intl_ids,network,secrets,addresses,names}.py` | the 90 detectors | ~900 |
 | `detectors/{ml,gliner}_plugin.py` | optional lazy ML adapters | ~200 |
 | `validators.py` · `validators_intl.py` | Luhn / INN / IBAN / Verhoeff / mod-11/97 | ~280 |
 | `strategies.py` · `formats.py` · `masking.py` | strategies, pseudonyms, placeholders | ~250 |
@@ -89,7 +89,7 @@ flowchart TD
 
 ## Detector catalog
 
-75 detectors → 68 placeholder types. `conf` = confidence; `a→b` = base→boosted when a keyword is in context (25-char window). Below the default threshold `0.70` a finding is dropped, so context-gated IDs do not fire on bare numbers.
+90 detectors → 83 placeholder types. `conf` = confidence; `a→b` = base→boosted when a keyword is in context (25-char window). Below the default threshold `0.70` a finding is dropped, so context-gated IDs do not fire on bare numbers.
 
 **International**
 
@@ -138,13 +138,25 @@ flowchart TD
 | `nhs_uk` | NHS_UK | 0.50→0.92 | mod-11, context |
 | `pesel_pl` `de_taxid` `aba_us` `us_passport` `us_itin` `uk_sort_code` `china_mobile` | … | 0.40–0.50→0.90+ | context-gated |
 
-**Network / infra**
+**World national IDs** (checksum-validated)
 
-`url_credentials` (masks `user:pass` in `scheme://…@`) · `aws_arn` · `geo_coord` (context-gated).
+| detector | type | conf | validation |
+|----------|------|:----:|------------|
+| `cpf_br` / `cnpj_br` (Brazil) | CPF_BR / CNPJ_BR | 0.85 / 0.88 | mod-11 |
+| `curp_mx` (Mexico) | CURP_MX | 0.90 | check digit |
+| `rrn_kr` (Korea) | RRN_KR | 0.40→0.92 | mod-11 + context¹ |
+| `vin` | VIN | 0.40→0.90 | ISO 3779 + context¹ |
+| `sin_ca` `tfn_au` `mynumber_jp` (CA/AU/JP) | … | 0.40→0.90 | checksum + context |
+
+¹ A lone mod-11 / ISO-3779 check passes ~9% of random 13-digit / 17-char tokens, so RRN and VIN require a keyword nearby (`주민등록번호`/`RRN`, `VIN`/`chassis`/`номер кузова`). TRON stays default-on — base58check (double-SHA256) is decisive.
+
+**Network / crypto**
+
+`url_credentials` (masks `user:pass` in `scheme://…@`) · `aws_arn` · `geo_coord` · `eth_address` · `btc_address` · `tron_address` · `solana_address`.
 
 **Secrets** (0.85–0.99, distinctive prefixes)
 
-`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `sendgrid_key` `twilio_sid` `mailgun_key` `telegram_bot` `discord_token` `ssh_pubkey` `jwt` `private_key` `password` `secret_assignment`
+`aws_access_key` `aws_secret` `anthropic_key` `openai_key` `github_token` `github_pat` `gitlab_token` `huggingface_token` `npm_token` `google_oauth_secret` `digitalocean_token` `shopify_token` `square_token` `google_api_key` `slack_token` `stripe_key` `stripe_webhook` `sendgrid_key` `twilio_sid` `mailgun_key` `telegram_bot` `discord_token` `ssh_pubkey` `vault_token` `doppler_token` `planetscale_token` `linear_token` `jwt` `private_key` `password` `secret_assignment`
 
 **Optional** (off by default): `high_entropy` (0.75), `names_aggressive` (single given names), `ml` (Presidio), `gliner` (ONNX NER).
 
@@ -279,8 +291,8 @@ xychart-beta
 
 | metric | value |
 |--------|-------|
-| Detectors / types | 75 / 68 |
-| Default-on detectors | 71 |
+| Detectors / types | 90 / 83 |
+| Default-on detectors | 86 |
 | **Precision / Recall / F1** | **1.00 / 1.00 / 1.00** (labeled eval corpus, 0 FP) |
 | Cold start | ~15 ms |
 | Throughput | ~1.05 MB/s |

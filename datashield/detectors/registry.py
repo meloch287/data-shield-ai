@@ -22,6 +22,7 @@ from datashield.detectors import (
     regex_intl,
     ru,
     secrets,
+    world_ids,
 )
 from datashield.detectors.base import RegexDetector
 
@@ -94,6 +95,7 @@ def build_catalog(config: Config) -> List[DetectorInfo]:
     pairs += [(d, True) for d in ru.build()]
     pairs += [(d, True) for d in extra.build()]
     pairs += [(d, True) for d in intl_ids.build()]
+    pairs += [(d, True) for d in world_ids.build()]
     pairs += [(d, True) for d in network.build()]
     pairs += [(d, True) for d in addresses.build()]
     pairs += [(d, True) for d in names.build()]

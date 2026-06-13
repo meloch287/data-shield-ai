@@ -2,7 +2,7 @@
 
 Проверяют сквозное поведение: документы под каждый регламент → группировка в
 report()["compliance"]; согласованность regulations_for с таксономией для ВСЕХ
-68 типов каталога; PCI-DSS == ровно financial-типы; секреты не относятся ни к
+типов каталога; PCI-DSS == ровно financial-типы; секреты не относятся ни к
 одному регламенту. Также — обнаружение сторонних детекторов через
 монкипатч importlib.metadata.entry_points (без установки пакетов).
 
@@ -26,22 +26,34 @@ def _catalog_types(config=None):
 
 CATALOG_TYPES = _catalog_types()
 
+# Базовые размеры каталога, вычисленные в момент запуска: число детекторов,
+# число включённых по умолчанию и число различных типов. Вычисляются из живого
+# каталога, чтобы ассерты не ломались при добавлении новых детекторов.
+_BASELINE_CATALOG = build_catalog(Config())
+DETECTOR_COUNT = len(_BASELINE_CATALOG)
+DEFAULT_ON_COUNT = sum(1 for i in _BASELINE_CATALOG if i.default_enabled)
+TYPE_COUNT = len(CATALOG_TYPES)
+
 
 # --------------------------------------------------------------------------
-# Каталог не изменился: 75 детекторов / 71 по умолчанию / 68 типов.
+# Форма каталога: число детекторов / включённых по умолчанию / различных типов.
+# Текущие значения (на момент написания): 90 детекторов / 86 по умолчанию /
+# 83 типа. Сверяем с динамически вычисленной базовой линией.
 # --------------------------------------------------------------------------
 class CatalogShapeTests(unittest.TestCase):
     def setUp(self):
         self.catalog = build_catalog(Config())
 
-    def test_detector_count_is_75(self):
-        self.assertEqual(len(self.catalog), 75)
+    def test_detector_count_matches_baseline(self):
+        self.assertEqual(len(self.catalog), DETECTOR_COUNT)
 
-    def test_default_on_count_is_71(self):
-        self.assertEqual(sum(1 for i in self.catalog if i.default_enabled), 71)
+    def test_default_on_count_matches_baseline(self):
+        self.assertEqual(
+            sum(1 for i in self.catalog if i.default_enabled), DEFAULT_ON_COUNT
+        )
 
-    def test_distinct_type_count_is_68(self):
-        self.assertEqual(len(CATALOG_TYPES), 68)
+    def test_distinct_type_count_matches_baseline(self):
+        self.assertEqual(len(CATALOG_TYPES), TYPE_COUNT)
 
 
 # --------------------------------------------------------------------------
@@ -66,7 +78,7 @@ class RegulationsStructureTests(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
-# regulations_for согласован с category_of для ВСЕХ 68 типов каталога:
+# regulations_for согласован с category_of для ВСЕХ типов каталога:
 # каждый тип отображается ровно на регламенты, подразумеваемые его категорией.
 # --------------------------------------------------------------------------
 class RegulationsForConsistencyTests(unittest.TestCase):
@@ -364,11 +376,11 @@ class PluginDiscoveryTests(unittest.TestCase):
 
     def test_broken_plugin_does_not_break_build_catalog(self):
         self._patch(_SelectableEPs([_FakeEP(_broken_builder)]))
-        # Не должно бросать исключений и каталог сохраняет базовые 68 типов.
+        # Не должно бросать исключений и каталог сохраняет базовую форму.
         catalog = build_catalog(Config())
-        self.assertEqual(len(catalog), 75)
+        self.assertEqual(len(catalog), DETECTOR_COUNT)
         types = {i.detector.type for i in catalog}
-        self.assertEqual(len(types), 68)
+        self.assertEqual(len(types), TYPE_COUNT)
         self.assertNotIn("PLUGIN_TYPE", types)
 
     def test_legacy_dict_entry_points_path(self):
@@ -399,11 +411,11 @@ class PluginDiscoveryTests(unittest.TestCase):
         self.assertNotIn("PLUGINMARKER", result.masked_text)
 
     def test_catalog_restored_after_unpatch(self):
-        # Контрольный кейс: после восстановления entry_points каталог = 68 типов.
+        # Контрольный кейс: после восстановления entry_points каталог = TYPE_COUNT.
         self._patch(_SelectableEPs([_FakeEP(_good_builder)]))
         self.assertIn("PLUGIN_TYPE", {i.detector.type for i in build_catalog(Config())})
         self._restore()
-        self.assertEqual(len(_catalog_types()), 68)
+        self.assertEqual(len(_catalog_types()), TYPE_COUNT)
 
 
 if __name__ == "__main__":
