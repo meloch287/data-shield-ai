@@ -15,8 +15,10 @@ from datashield.detectors import (
     addresses,
     extra,
     gliner_plugin,
+    intl_ids,
     ml_plugin,
     names,
+    network,
     regex_intl,
     ru,
     secrets,
@@ -56,6 +58,8 @@ def build_catalog(config: Config) -> List[DetectorInfo]:
     pairs += [(d, True) for d in regex_intl.build()]
     pairs += [(d, True) for d in ru.build()]
     pairs += [(d, True) for d in extra.build()]
+    pairs += [(d, True) for d in intl_ids.build()]
+    pairs += [(d, True) for d in network.build()]
     pairs += [(d, True) for d in addresses.build()]
     pairs += [(d, True) for d in names.build()]
     pairs += [(d, False) for d in names.build_optional()]

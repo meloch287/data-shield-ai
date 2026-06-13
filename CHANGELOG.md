@@ -2,6 +2,24 @@
 
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [1.3.0] — 2026-06-13
+
+### Добавлено
+- **Международные ID** (`datashield/validators_intl.py` + `detectors/intl_ids.py`):
+  India Aadhaar (Verhoeff) и PAN, China 居民身份证 (mod-11) и мобильный,
+  UK NHS (mod-11) и sort code, US ABA (checksum)/passport/ITIN, EU — Spain
+  DNI/NIE, Italy Codice Fiscale, France NIR (mod-97), Germany Steuer-ID,
+  Poland PESEL. Сильная валидация → включены по умолчанию; форматно-общие —
+  контекстно-зависимые.
+- **Сеть/инфра** (`detectors/network.py`): учётки в URL (`scheme://user:pass@`),
+  AWS ARN, гео-координаты (по ключевому слову).
+- **Ещё секреты**: Twilio, Mailgun, Telegram bot, Discord, SSH public key.
+- **75 детекторов, 68 типов** данных из коробки.
+
+### Исправлено
+- ReDoS в детекторе `url_credentials` (катастрофический бэктрекинг по длинному
+  ряду букв): ограничена длина схемы + `\b`; 2144 мс → 46 мс на 50 КБ.
+
 ## [1.2.0] — 2026-06-13
 
 ### Добавлено

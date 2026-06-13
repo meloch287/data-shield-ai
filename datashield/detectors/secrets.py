@@ -81,6 +81,20 @@ def build() -> List[RegexDetector]:
             "sendgrid_key", "SENDGRID_KEY",
             r"\bSG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}\b", 0.95,
         ),
+        RegexDetector("twilio_sid", "TWILIO_SID", r"\bAC[0-9a-fA-F]{32}\b", 0.9),
+        RegexDetector("mailgun_key", "MAILGUN_KEY", r"\bkey-[0-9a-f]{32}\b", 0.9),
+        RegexDetector(
+            "telegram_bot", "TELEGRAM_BOT_TOKEN",
+            r"\b\d{8,10}:[A-Za-z0-9_\-]{35}\b", 0.9,
+        ),
+        RegexDetector(
+            "discord_token", "DISCORD_TOKEN",
+            r"\b[MNO][A-Za-z0-9_\-]{23}\.[A-Za-z0-9_\-]{6}\.[A-Za-z0-9_\-]{27,}\b", 0.85,
+        ),
+        RegexDetector(
+            "ssh_pubkey", "SSH_PUBKEY",
+            r"\bssh-(?:rsa|ed25519|dss)\s+[A-Za-z0-9+/]{40,}={0,3}", 0.85,
+        ),
         RegexDetector(
             "google_api_key",
             "GOOGLE_API_KEY",

@@ -87,6 +87,27 @@ class RecallRegressions(unittest.TestCase):
             self.assertIn(expected_type, types_in(f"secret {value} end"), expected_type)
 
 
+class ReDoSRegressions(unittest.TestCase):
+    """Латентные ReDoS, найденные адверсариал-аудитом и исправленные."""
+
+    def test_email_dotted_input_fast(self):
+        # Точечный вход (a.a.a...) раньше давал O(n^2) в email-регулярке.
+        import time
+
+        text = "a." * 20000  # 40 КБ
+        t0 = time.perf_counter()
+        scan(text)
+        self.assertLess(time.perf_counter() - t0, 0.5)
+
+    def test_url_credentials_long_letters_fast(self):
+        import time
+
+        text = "x" * 50000
+        t0 = time.perf_counter()
+        scan(text)
+        self.assertLess(time.perf_counter() - t0, 0.5)
+
+
 class KeywordGatedStillWork(unittest.TestCase):
     """SSN/NINO ловятся при ключевом слове рядом."""
 
