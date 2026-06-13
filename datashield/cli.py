@@ -203,6 +203,20 @@ def _cmd_restore(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_types(args: argparse.Namespace) -> int:
+    """Список типов данных: категория, критичность, регламенты."""
+    from datashield.compliance import regulations_for
+
+    config = _load_config_or_exit(args.config)
+    seen = sorted({info.detector.type for info in build_catalog(config)})
+    for t in seen:
+        regs = ", ".join(regulations_for(t)) or "—"
+        sys.stdout.write(
+            f"  {t:<18} {category_of(t):<14} {severity_of(t):<8} {regs}\n"
+        )
+    return 0
+
+
 def _cmd_check(args: argparse.Namespace) -> int:
     """Сканирует файлы; код возврата 1, если найдены данные (для CI/pre-commit)."""
     config = _load_config_or_exit(args.config)
@@ -351,6 +365,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_mcp = sub.add_parser("mcp", help="MCP-сервер (stdio) для агентов")
     p_mcp.set_defaults(func=_cmd_mcp)
+
+    p_types = sub.add_parser("types", help="типы данных: категория, критичность, регламенты")
+    p_types.add_argument("-c", "--config", help="путь к .datashield.json")
+    p_types.set_defaults(func=_cmd_types)
 
     return parser
 

@@ -12,6 +12,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from datashield.compliance import classify
 from datashield.detectors.base import Finding
 from datashield.masking import ReplacementContext, mask_preview
 from datashield.normalize import normalize_text
@@ -96,6 +97,7 @@ class RedactionResult:
             "salt": salt.hex(),
             "stats": dict(self.stats),
             "total": len(self.findings),
+            "compliance": classify({f.type for f in self.findings}),
             "entries": entries,
         }
 
@@ -160,7 +162,12 @@ class RedactionEngine:
     def _analyze(self, text: str) -> List[Finding]:
         raw: List[Finding] = []
         for detector in self.detectors:
-            raw.extend(detector.detect(text))
+            # Изоляция: сбой одного детектора (например, стороннего плагина) не
+            # должен ломать редакцию всего остального.
+            try:
+                raw.extend(detector.detect(text))
+            except Exception:  # noqa: BLE001
+                continue
         filtered: List[Finding] = []
         for finding in raw:
             if finding.confidence < self.min_confidence:

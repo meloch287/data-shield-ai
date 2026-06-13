@@ -35,6 +35,41 @@ class DetectorInfo:
     enabled: bool
 
 
+def _plugin_detectors() -> List[Any]:
+    """Детекторы из сторонних пакетов через entry_points группы
+    `datashield.detectors`. Каждый entry point — вызываемое, возвращающее список
+    детекторов. Сбой одного плагина не ломает остальные."""
+    found: List[Any] = []
+    try:
+        from importlib.metadata import entry_points
+    except ImportError:  # pragma: no cover
+        return found
+    try:
+        eps = entry_points()
+        group = (
+            eps.select(group="datashield.detectors")
+            if hasattr(eps, "select")
+            else eps.get("datashield.detectors", [])  # type: ignore
+        )
+    except Exception:  # noqa: BLE001 - discovery не должен падать
+        return found
+    for ep in group:
+        try:
+            builder = ep.load()
+            for det in builder():
+                # Принимаем только то, что похоже на детектор (есть name/type/detect),
+                # иначе кривой плагин уронил бы каталог.
+                if (
+                    hasattr(det, "name")
+                    and hasattr(det, "type")
+                    and callable(getattr(det, "detect", None))
+                ):
+                    found.append(det)
+        except Exception:  # noqa: BLE001 - один плохой плагин не валит всё
+            continue
+    return found
+
+
 def _custom_detectors(config: Config) -> List[RegexDetector]:
     built: List[RegexDetector] = []
     for spec in config.custom_patterns:
@@ -67,6 +102,7 @@ def build_catalog(config: Config) -> List[DetectorInfo]:
     pairs += [(d, False) for d in secrets.build_optional()]
     pairs += [(d, False) for d in ml_plugin.build_optional()]
     pairs += [(d, False) for d in gliner_plugin.build_optional()]
+    pairs += [(d, True) for d in _plugin_detectors()]
     pairs += [(d, True) for d in _custom_detectors(config)]
 
     disabled = set(config.disabled_detectors)
