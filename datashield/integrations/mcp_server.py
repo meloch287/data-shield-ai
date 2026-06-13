@@ -86,9 +86,14 @@ def _call_tool(name: str, args: Dict) -> Dict:
 
 
 def handle(request: Dict) -> Optional[Dict]:
-    """Обрабатывает один JSON-RPC запрос. None — если это уведомление."""
+    """Обрабатывает один JSON-RPC запрос. None — если это уведомление.
+
+    Если ``request`` — валидный JSON, но не объект (список/число/строка/null),
+    по JSON-RPC 2.0 это Invalid Request: возвращаем ошибку -32600 с id=null,
+    а не молча роняем строку. Так handle() безопасен для любого ввода.
+    """
     if not isinstance(request, dict):
-        return None
+        return _error(None, -32600, "Invalid Request")
     method = request.get("method")
     request_id = request.get("id")
     if method == "initialize":
@@ -132,9 +137,10 @@ def serve_stdio(stdin=None, stdout=None) -> None:
         try:
             request = json.loads(line)
         except json.JSONDecodeError:
+            # Не-JSON мусор: id не сформировать, отвечать нечем — пропускаем.
             continue
-        if not isinstance(request, dict):
-            continue
+        # Валидный-JSON-не-объект обрабатывает handle() (вернёт -32600), поэтому
+        # цикл не падает и следующий корректный запрос будет обслужен.
         response = handle(request)
         if response is not None:
             stdout.write(json.dumps(response, ensure_ascii=False) + "\n")

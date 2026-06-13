@@ -8,14 +8,16 @@ ThreadingHTTPServer на эфемерном порту (port=0), который 
 from __future__ import annotations
 
 import json
+import socket
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 
 from datashield import __version__
-from datashield.integrations.http_server import make_handler, process
+from datashield.integrations.http_server import MAX_BODY_BYTES, make_handler, process
 from datashield.masking import mask_preview
 
 
@@ -226,6 +228,142 @@ class HttpRoundTripTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             self._get("/does-not-exist")
         self.assertEqual(ctx.exception.code, 404)
+
+    def test_post_text_non_string_returns_400_not_dropped(self):
+        # Регрессия: process() кидает TypeError/ValueError на не-строковом text.
+        # do_POST обязан вернуть чистый 400, а НЕ уронить соединение
+        # (RemoteDisconnected). Соединение живо, ответ — корректный JSON.
+        for bad in (123, [1, 2], {"nested": 1}, True):
+            with self.subTest(text=bad):
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    self._post("/redact", {"text": bad})
+                self.assertEqual(ctx.exception.code, 400)
+                body = json.loads(ctx.exception.read().decode("utf-8"))
+                self.assertEqual(body, {"error": "invalid request"})
+
+    def test_post_bad_strategy_returns_400_without_echoing_input(self):
+        # Неизвестная стратегия → 400. Сообщение ОБОБЩЁННОЕ: ни имя стратегии,
+        # ни (что важнее) значение text не попадают в ответ — гарантия «без
+        # утечки» не ослаблена даже в ошибках.
+        secret_text = "secret-payload-do-not-echo@hidden.example"
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self._post(
+                "/redact",
+                {"text": secret_text, "strategy": "definitely-not-a-strategy"},
+            )
+        self.assertEqual(ctx.exception.code, 400)
+        raw_body = ctx.exception.read().decode("utf-8")
+        self.assertEqual(json.loads(raw_body), {"error": "invalid request"})
+        self.assertNotIn("definitely-not-a-strategy", raw_body)
+        self.assertNotIn(secret_text, raw_body)
+        self.assertNotIn("hidden.example", raw_body)
+
+    def test_post_bad_preset_returns_400(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self._post("/redact", {"text": "a@b.com", "preset": "no-such-preset"})
+        self.assertEqual(ctx.exception.code, 400)
+
+    def test_unexpected_process_error_returns_500_not_dropped(self):
+        # Любая НЕОЖИДАННАЯ ошибка внутри process() (баг) не должна ронять
+        # соединение: do_POST/_dispatch ловит её и отвечает 500 без эха.
+        from unittest import mock
+
+        def boom(path, body):
+            raise RuntimeError("secret-internal-detail-should-not-leak")
+
+        with mock.patch(
+            "datashield.integrations.http_server.process", side_effect=boom
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                self._post("/redact", {"text": "a@b.com"})
+        self.assertEqual(ctx.exception.code, 500)
+        raw_body = ctx.exception.read().decode("utf-8")
+        self.assertEqual(json.loads(raw_body), {"error": "internal error"})
+        # Текст исключения не отражается в ответе.
+        self.assertNotIn("secret-internal-detail-should-not-leak", raw_body)
+
+    def test_get_unexpected_error_returns_500(self):
+        # do_GET тоже обёрнут (симметрия): неожиданная ошибка → 500, не падение.
+        from unittest import mock
+
+        with mock.patch(
+            "datashield.integrations.http_server.process",
+            side_effect=RuntimeError("boom"),
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                self._get("/health")
+        self.assertEqual(ctx.exception.code, 500)
+
+
+class HttpContentLengthTests(unittest.TestCase):
+    """DEFECT 3 и семья проверок Content-Length. Сырые сокет-запросы дают полный
+    контроль над заголовком Content-Length (urllib его не подделать). Хендлер с
+    коротким таймаутом (2с), чтобы тест на «не зависает» был быстрым."""
+
+    def setUp(self):
+        base = make_handler()
+
+        class FastHandler(base):  # короткий сокет-таймаут для теста
+            timeout = 2
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), FastHandler)
+        self.host, self.port = self.server.server_address[:2]
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, daemon=True
+        )
+        self.thread.start()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+
+    def _raw_post(self, content_length_header, body=b"", read_timeout=10):
+        """Шлёт сырой POST /redact с произвольным Content-Length. Возвращает
+        (elapsed_seconds, response_bytes). Читает до конца заголовков или EOF."""
+        sock = socket.create_connection((self.host, self.port), timeout=read_timeout)
+        sock.settimeout(read_timeout)  # строго больше серверного таймаута
+        request = (
+            b"POST /redact HTTP/1.1\r\n"
+            b"Host: 127.0.0.1\r\n"
+            b"Content-Length: " + content_length_header + b"\r\n"
+            b"\r\n" + body
+        )
+        start = time.monotonic()
+        sock.sendall(request)
+        chunks = []
+        try:
+            while b"\r\n\r\n" not in b"".join(chunks):
+                data = sock.recv(4096)
+                if not data:
+                    break
+                chunks.append(data)
+        finally:
+            sock.close()
+        return time.monotonic() - start, b"".join(chunks)
+
+    def test_content_length_exceeds_body_does_not_hang(self):
+        # Заявляем огромный Content-Length, шлём лишь b"{}" и НЕ досылаем остаток.
+        # Сервер не виснет бесконечно: сокет-таймаут → 408 в пределах таймаута.
+        elapsed, response = self._raw_post(b"999999", body=b"{}")
+        self.assertLess(elapsed, 8.0, "сервер завис дольше своего таймаута")
+        self.assertIn(b"408", response.split(b"\r\n", 1)[0], response)
+
+    def test_oversized_content_length_rejected_before_read(self):
+        # Content-Length больше MAX_BODY_BYTES → 413 СРАЗУ, до чтения тела
+        # (поэтому тело не шлём вовсе и зависания быть не может — ответ мгновенный).
+        big = str(MAX_BODY_BYTES + 1).encode()
+        elapsed, response = self._raw_post(big, body=b"")
+        self.assertLess(elapsed, 1.5, "413 должен отдаваться без чтения тела")
+        self.assertIn(b"413", response.split(b"\r\n", 1)[0], response)
+
+    def test_invalid_content_length_header_returns_400(self):
+        elapsed, response = self._raw_post(b"not-a-number", body=b"")
+        self.assertIn(b"400", response.split(b"\r\n", 1)[0], response)
+
+    def test_negative_content_length_returns_400(self):
+        elapsed, response = self._raw_post(b"-5", body=b"")
+        self.assertIn(b"400", response.split(b"\r\n", 1)[0], response)
 
 
 if __name__ == "__main__":

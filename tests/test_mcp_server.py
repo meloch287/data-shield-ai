@@ -277,6 +277,20 @@ class ErrorHandlingTests(unittest.TestCase):
         resp = handle(_req("tools/call", 12, {"arguments": {"text": "x"}}))
         self.assertEqual(resp["error"]["code"], -32602)
 
+    def test_non_object_request_is_invalid_request(self):
+        # Регрессия: валидный JSON, но не объект (список/число/строка/null).
+        # handle() обязан вернуть -32600 Invalid Request с id=null, а не упасть
+        # с AttributeError на request.get(...). Раньше возвращался молча None.
+        for value in ([1, 2, 3], 12345, "строка", None, 3.14, True):
+            with self.subTest(value=value):
+                resp = handle(value)
+                self.assertIsNotNone(resp)
+                self.assertEqual(resp["jsonrpc"], "2.0")
+                self.assertIsNone(resp["id"])
+                self.assertNotIn("result", resp)
+                self.assertEqual(resp["error"]["code"], -32600)
+                self.assertEqual(resp["error"]["message"], "Invalid Request")
+
 
 class ServeStdioTests(unittest.TestCase):
     def _run(self, requests):
@@ -337,6 +351,36 @@ class ServeStdioTests(unittest.TestCase):
             out,
         )
         self.assertEqual(out.getvalue().strip(), "")
+
+    def test_valid_json_non_object_line_does_not_kill_loop(self):
+        # Регрессия: строка — валидный JSON, но не объект ([1,2,3]). Раньше это
+        # роняло цикл (AttributeError в handle), и следующий запрос оставался
+        # без ответа. Теперь строка получает -32600, а ping обслуживается.
+        data = "[1, 2, 3]\n" + json.dumps(_req("ping", 1)) + "\n"
+        out = io.StringIO()
+        serve_stdio(io.StringIO(data), out)
+        responses = [
+            json.loads(ln) for ln in out.getvalue().splitlines() if ln.strip()
+        ]
+        self.assertEqual(len(responses), 2)
+        self.assertEqual(responses[0]["error"]["code"], -32600)
+        self.assertIsNone(responses[0]["id"])
+        # Ключевая гарантия: следующий корректный запрос ОБСЛУЖЕН.
+        self.assertEqual(responses[1]["id"], 1)
+        self.assertEqual(responses[1]["result"], {})
+
+    def test_multiple_non_object_lines_each_get_invalid_request(self):
+        # Несколько подряд «не-объектных» строк не глушат поток.
+        data = "12345\n\"hi\"\nnull\n" + json.dumps(_req("ping", 7)) + "\n"
+        out = io.StringIO()
+        serve_stdio(io.StringIO(data), out)
+        responses = [
+            json.loads(ln) for ln in out.getvalue().splitlines() if ln.strip()
+        ]
+        # null -> JSON null -> не объект -> -32600 (три ошибки), затем ping.
+        codes = [r.get("error", {}).get("code") for r in responses[:3]]
+        self.assertEqual(codes, [-32600, -32600, -32600])
+        self.assertEqual(responses[-1]["id"], 7)
 
 
 if __name__ == "__main__":

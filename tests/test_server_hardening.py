@@ -1,5 +1,6 @@
 """Регресс на устойчивость серверов (адверсариал-аудит Блока G)."""
 import io
+import json
 import unittest
 
 from datashield.integrations.http_server import MAX_BODY_BYTES, process
@@ -7,9 +8,16 @@ from datashield.integrations.mcp_server import handle, serve_stdio
 
 
 class McpRobustnessTests(unittest.TestCase):
-    def test_handle_non_dict_returns_none(self):
+    def test_handle_non_dict_returns_invalid_request(self):
+        # Эволюция поведения: раньше handle() молча возвращал None. Теперь
+        # валидный-JSON-не-объект по JSON-RPC 2.0 — Invalid Request (-32600,
+        # id=null). Главная гарантия (не падать) сохранена и усилена ответом.
         for bad in ([1, 2, 3], 12345, "str", None, 3.14):
-            self.assertIsNone(handle(bad))
+            resp = handle(bad)
+            self.assertIsNotNone(resp)
+            self.assertIsNone(resp["id"])
+            self.assertNotIn("result", resp)
+            self.assertEqual(resp["error"]["code"], -32600)
 
     def test_non_object_params_does_not_crash(self):
         # tools/call с params не-объектом не должен ронять handle()
@@ -31,9 +39,16 @@ class McpRobustnessTests(unittest.TestCase):
             io.StringIO('[1,2,3]\n12345\n"x"\n{"jsonrpc":"2.0","id":7,"method":"ping"}\n'),
             out,
         )
-        # битые строки пропущены, валидный ping обработан
-        self.assertIn('"id": 7', out.getvalue())
-        self.assertEqual(out.getvalue().strip().count("\n"), 0)  # ровно один ответ
+        lines = [json.loads(ln) for ln in out.getvalue().splitlines() if ln.strip()]
+        # Три «не-объектных» строки → три -32600, затем валидный ping обработан.
+        # Цикл не падает и продолжает обслуживать корректные запросы.
+        self.assertEqual(len(lines), 4)
+        self.assertEqual(
+            [ln.get("error", {}).get("code") for ln in lines[:3]],
+            [-32600, -32600, -32600],
+        )
+        self.assertEqual(lines[-1]["id"], 7)
+        self.assertEqual(lines[-1]["result"], {})
 
 
 class HttpRobustnessTests(unittest.TestCase):

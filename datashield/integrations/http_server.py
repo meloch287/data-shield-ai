@@ -70,9 +70,24 @@ def make_handler():
             self.end_headers()
             self.wfile.write(data)
 
-        def do_GET(self):
-            status, payload = process(self.path, {})
+        def _dispatch(self, body: Dict[str, Any]) -> None:
+            """Зовёт process() и всегда отвечает корректным JSON, не роняя
+            соединение. Сообщения об ошибках СПЕЦИАЛЬНО обобщённые — содержимое
+            запроса (в т. ч. чувствительное) никогда не отражается в ответе."""
+            try:
+                status, payload = process(self.path, body)
+            except (ValueError, TypeError, AttributeError):
+                # Некорректный ввод: не-строковый text, неизвестная стратегия/
+                # пресет/min_severity и т. п. → 400 без эха ввода.
+                self._send(400, {"error": "invalid request"})
+                return
+            except Exception:  # noqa: BLE001 - не ронять соединение на баге
+                self._send(500, {"error": "internal error"})
+                return
             self._send(status, payload)
+
+        def do_GET(self):
+            self._dispatch({})
 
         def do_POST(self):
             try:
@@ -98,12 +113,7 @@ def make_handler():
             except (ValueError, UnicodeDecodeError):
                 self._send(400, {"error": "invalid JSON body"})
                 return
-            try:
-                status, payload = process(self.path, body)
-            except (ValueError, TypeError, AttributeError) as exc:
-                self._send(400, {"error": str(exc)})
-                return
-            self._send(status, payload)
+            self._dispatch(body)
 
     return Handler
 
