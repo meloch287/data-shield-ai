@@ -51,6 +51,7 @@ def build() -> List[RegexDetector]:
             "EMAIL",
             r"\b[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,255}\.[A-Za-z]{2,24}\b",
             0.98,
+            prefilter="@",
         ),
         # Международный телефон требует ведущего «+», иначе слишком много шума.
         RegexDetector(

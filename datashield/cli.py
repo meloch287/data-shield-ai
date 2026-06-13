@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from typing import List, Optional
@@ -94,6 +95,15 @@ def _cmd_redact(args: argparse.Namespace) -> int:
     except ValueError as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
+    if getattr(args, "stream", False):
+        if not args.input or not args.output:
+            sys.stderr.write("--stream требует --in и --out\n")
+            return 2
+        from datashield.streaming import redact_file
+
+        n = redact_file(args.input, args.output, engine)
+        sys.stderr.write(f"Потоково обработано, находок: {n}\n")
+        return 0
     text = _read_input(args.input)
     fmt = getattr(args, "format", "text")
     if fmt in ("json-data", "csv"):
@@ -236,6 +246,26 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_batch(args: argparse.Namespace) -> int:
+    """Параллельно редактирует несколько файлов в каталог вывода."""
+    from datashield.batch import redact_files
+
+    os.makedirs(args.out_dir, exist_ok=True)
+    pairs = [
+        (f, os.path.join(args.out_dir, os.path.basename(f) + args.suffix))
+        for f in args.files
+    ]
+    results = redact_files(pairs, workers=args.workers)
+    failed = 0
+    for out_path, count in sorted(results.items()):
+        if count < 0:
+            failed += 1
+            sys.stdout.write(f"  {out_path}: ОШИБКА (файл не прочитан)\n")
+        else:
+            sys.stdout.write(f"  {out_path}: {count}\n")
+    return 1 if failed else 0
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     from datashield.integrations.http_server import serve
 
@@ -327,6 +357,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--format", default="text", choices=["text", "json-data", "csv"],
         help="формат входа: text (по умолчанию), json-data или csv (структурно)",
     )
+    p_redact.add_argument(
+        "--stream", action="store_true",
+        help="потоково (для больших файлов; требует --in и --out)",
+    )
     p_redact.set_defaults(func=_cmd_redact)
 
     p_restore = sub.add_parser("restore", help="восстановить оригиналы по vault")
@@ -369,6 +403,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_types = sub.add_parser("types", help="типы данных: категория, критичность, регламенты")
     p_types.add_argument("-c", "--config", help="путь к .datashield.json")
     p_types.set_defaults(func=_cmd_types)
+
+    p_batch = sub.add_parser("batch", help="параллельная редакция нескольких файлов")
+    p_batch.add_argument("files", nargs="+", help="входные файлы")
+    p_batch.add_argument("--out-dir", dest="out_dir", required=True, help="каталог вывода")
+    p_batch.add_argument("--suffix", default=".masked", help="суффикс имени (по умолчанию .masked)")
+    p_batch.add_argument("--workers", type=int, default=None, help="число процессов")
+    p_batch.set_defaults(func=_cmd_batch)
 
     return parser
 

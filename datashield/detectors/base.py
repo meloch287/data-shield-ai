@@ -50,6 +50,7 @@ class RegexDetector:
         validator: Optional[Callable[[str], bool]] = None,
         suppress_context: Optional[str] = None,
         context_window: int = 15,
+        prefilter: Optional[Union[str, tuple]] = None,
     ) -> None:
         self.name = name
         self.type = type
@@ -57,6 +58,14 @@ class RegexDetector:
         self.confidence = confidence
         self.group = group
         self.validator = validator
+        # Дешёвый литеральный пре-скрин: если ни одной из этих подстрок нет в
+        # тексте, дорогой finditer пропускаем (substring `in` работает на C).
+        if prefilter is None:
+            self._prefilter: tuple = ()
+        elif isinstance(prefilter, str):
+            self._prefilter = (prefilter,)
+        else:
+            self._prefilter = tuple(prefilter)
         # Если предшествующее окно совпадает с suppress — находку отбрасываем
         # (напр. IP, которому предшествует «версия/build» — это номер версии).
         self.suppress_re = (
@@ -65,6 +74,8 @@ class RegexDetector:
         self.context_window = context_window
 
     def detect(self, text: str) -> List[Finding]:
+        if self._prefilter and not any(p in text for p in self._prefilter):
+            return []
         findings: List[Finding] = []
         for match in self.regex.finditer(text):
             value = match.group(self.group)

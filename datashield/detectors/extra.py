@@ -56,7 +56,9 @@ def build() -> List[object]:
             "uk_nino", "UK_NINO", r"\b[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]\b",
             0.5, 0.92, r"\bNINO\b|national\s+insurance|\bNI\s+number",
         ),
-        RegexDetector("eth_address", "ETH_ADDRESS", r"\b0x[a-fA-F0-9]{40}\b", 0.95),
+        RegexDetector(
+            "eth_address", "ETH_ADDRESS", r"\b0x[a-fA-F0-9]{40}\b", 0.95, prefilter="0x"
+        ),
         RegexDetector(
             "btc_address", "BTC_ADDRESS",
             r"\b(?:bc1[a-z0-9]{25,39}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b", 0.78,
