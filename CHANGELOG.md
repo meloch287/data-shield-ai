@@ -2,6 +2,17 @@
 
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [1.7.0] — 2026-06-13
+
+### Добавлено (интеграции, всё на stdlib)
+- **MCP-сервер** (`datashield mcp`, entry-point `datashield-mcp`) — инструменты
+  `redact`/`scan` по JSON-RPC stdio: любой агент может локально обезличить текст
+  перед отправкой во внешнюю модель.
+- **HTTP-сервис** (`datashield serve`): `POST /redact`, `/scan`, `GET /health`.
+- **Фильтр логирования** (`RedactingFilter`) — маскирует ПДн/секреты в логах.
+- **Команда `check`** — код возврата 1, если в файлах есть данные (для CI).
+- **pre-commit-хук** (`.pre-commit-hooks.yaml`) и **GitHub Action** (`action.yml`).
+
 ## [1.6.0] — 2026-06-13
 
 ### Добавлено

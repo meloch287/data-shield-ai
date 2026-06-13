@@ -1,0 +1,7 @@
+- id: data-shield-ai
+  name: Data Shield AI — block confidential data
+  description: Fail the commit if staged files contain PII, secrets or keys.
+  entry: datashield check
+  language: python
+  types: [text]
+  pass_filenames: true

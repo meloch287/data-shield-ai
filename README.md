@@ -35,6 +35,7 @@ Pure Python stdlib, no dependencies, no network. 75 detectors, 68 data types. Sa
 - [Metrics](#metrics)
 - [Privacy model](#privacy-model)
 - [Install / Usage / API](#install)
+- [Integrations](#integrations)
 - [Tests](#tests)
 
 ## Pipeline
@@ -343,11 +344,36 @@ redact("phone +7 909 123 45 67").masked_text   # 'phone [PHONE_RU_1]'
   "custom_patterns": [{"name":"employee_id","type":"EMPLOYEE_ID","pattern":"EMP-\\d{6}","confidence":0.9}] }
 ```
 
+## Integrations
+
+All stdlib, no extra dependencies.
+
+```bash
+datashield mcp                      # MCP server (stdio) — agents call redact/scan
+datashield serve --port 8765        # HTTP: POST /redact, /scan ; GET /health
+datashield check  path/to/files     # exit 1 if confidential data found (CI gate)
+```
+
+```python
+# Mask confidential data in application logs
+import logging
+from datashield.integrations.logging_filter import RedactingFilter
+logging.getLogger().addFilter(RedactingFilter())
+```
+
+- **MCP:** register `datashield mcp` (or the `datashield-mcp` entry point) as an MCP
+  server; it exposes `redact` and `scan` tools so any agent masks data before it
+  reaches an external model.
+- **pre-commit:** add this repo as a hook (`.pre-commit-hooks.yaml`, id
+  `data-shield-ai`) to block commits that contain PII/secrets.
+- **GitHub Action:** `action.yml` scans a repo and fails the build on findings.
+
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -t .     # 701 tests
+python3 -m unittest discover -s tests -t .     # 1540+ tests
 python3 tools/benchmark.py                      # throughput
+python3 tools/eval/evaluate.py                  # precision/recall on the corpus
 ```
 
 ## License

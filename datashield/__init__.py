@@ -1,7 +1,7 @@
 """Data Shield AI — локальный фильтр приватности между пользователем и ИИ."""
 from __future__ import annotations
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 
 from datashield.api import build_engine, redact, restore, scan
 from datashield.config import Config, load_config

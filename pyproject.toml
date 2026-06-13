@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "data-shield-ai"
-version = "1.6.0"
+version = "1.7.0"
 description = "Локальная приватная прослойка: маскирует конфиденциальные данные до отправки во внешний ИИ"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,12 +23,18 @@ dev = ["ruff>=0.5", "mypy>=1.8", "coverage>=7.0"]
 
 [project.scripts]
 datashield = "datashield.cli:main"
+datashield-mcp = "datashield.integrations.mcp_server:serve_stdio"
 
 [project.urls]
 Homepage = "https://github.com/meloch287/data-shield-ai"
 
 [tool.setuptools]
-packages = ["datashield", "datashield.detectors", "datashield.data"]
+packages = [
+    "datashield",
+    "datashield.detectors",
+    "datashield.data",
+    "datashield.integrations",
+]
 
 [tool.setuptools.package-data]
 datashield = ["py.typed"]

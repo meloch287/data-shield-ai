@@ -1,0 +1,28 @@
+name: "Data Shield AI scan"
+description: "Scan files for confidential data (PII, secrets, keys) and fail if any are found."
+branding:
+  icon: "shield"
+  color: "green"
+inputs:
+  paths:
+    description: "Space-separated files or globs to scan."
+    required: false
+    default: "."
+  min-severity:
+    description: "Only fail on findings at or above this severity (low|medium|high|critical)."
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Install Data Shield AI
+      shell: bash
+      run: pip install data-shield-ai
+    - name: Scan
+      shell: bash
+      run: |
+        ARGS=""
+        if [ -n "${{ inputs.min-severity }}" ]; then ARGS="--min-severity ${{ inputs.min-severity }}"; fi
+        FILES=$(find ${{ inputs.paths }} -type f \( -name '*.txt' -o -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' -o -name '*.env' -o -name '*.cfg' -o -name '*.ini' \) 2>/dev/null)
+        if [ -z "$FILES" ]; then echo "No matching files."; exit 0; fi
+        datashield check $ARGS $FILES

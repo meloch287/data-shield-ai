@@ -203,6 +203,39 @@ def _cmd_restore(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_check(args: argparse.Namespace) -> int:
+    """Сканирует файлы; код возврата 1, если найдены данные (для CI/pre-commit)."""
+    config = _load_config_or_exit(args.config)
+    engine = build_engine(config, min_severity=args.min_severity)
+    total = 0
+    for path in args.files or ["-"]:
+        text = sys.stdin.read() if path == "-" else _read_input(path)
+        for f in engine.analyze(text):
+            total += 1
+            sys.stdout.write(
+                f"{path}: [{f.type}] {category_of(f.type)}/{severity_of(f.type)} "
+                f"{mask_preview(f.value)}\n"
+            )
+    if total:
+        sys.stderr.write(f"Найдено конфиденциальных данных: {total}\n")
+        return 1
+    return 0
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    from datashield.integrations.http_server import serve
+
+    serve(args.host, args.port)
+    return 0
+
+
+def _cmd_mcp(args: argparse.Namespace) -> int:
+    from datashield.integrations.mcp_server import serve_stdio
+
+    serve_stdio()
+    return 0
+
+
 def _cmd_detectors(args: argparse.Namespace) -> int:
     config = _load_config_or_exit(args.config)
     catalog = build_catalog(config)
@@ -301,6 +334,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_det = sub.add_parser("detectors", help="список детекторов")
     p_det.add_argument("-c", "--config", help="путь к .datashield.json")
     p_det.set_defaults(func=_cmd_detectors)
+
+    p_check = sub.add_parser("check", help="код 1, если в файлах есть данные (CI/pre-commit)")
+    p_check.add_argument("files", nargs="*", help="файлы (иначе stdin)")
+    p_check.add_argument("-c", "--config", help="путь к .datashield.json")
+    p_check.add_argument(
+        "--min-severity", choices=["low", "medium", "high", "critical"],
+        help="падать только на типах не ниже этой критичности",
+    )
+    p_check.set_defaults(func=_cmd_check)
+
+    p_serve = sub.add_parser("serve", help="HTTP-сервис редакции")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.set_defaults(func=_cmd_serve)
+
+    p_mcp = sub.add_parser("mcp", help="MCP-сервер (stdio) для агентов")
+    p_mcp.set_defaults(func=_cmd_mcp)
 
     return parser
 
