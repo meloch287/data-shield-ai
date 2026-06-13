@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import sys
 import unittest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -132,8 +133,13 @@ class ActionYmlTest(unittest.TestCase):
         self.assertIn("min-severity", input_keys)
 
 
+@unittest.skipIf(sys.version_info < (3, 11), "разбор TOML требует Python 3.11+")
 class PyprojectScriptsTest(unittest.TestCase):
-    """pyproject.toml — console-scripts и пакеты для интеграций."""
+    """pyproject.toml — console-scripts и пакеты для интеграций.
+
+    Содержимое pyproject не зависит от версии Python; на 3.9/3.10 (без tomllib)
+    проверку пропускаем — её достаточно прогонять на 3.11+.
+    """
 
     PATH = "pyproject.toml"
 
