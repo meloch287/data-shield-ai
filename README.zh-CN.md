@@ -30,6 +30,7 @@
 - [置信度模型](#置信度模型)
 - [重叠消解](#重叠消解)
 - [校验算法](#校验算法)
+- [策略与可逆性](#策略与可逆性)
 - [指标](#指标)
 - [隐私模型](#隐私模型)
 - [安装 / 使用 / API](#安装)
@@ -171,6 +172,28 @@ flowchart TD
 | SNILS | 养老金号 | `Σ d[i]·(9-i) mod 101` → 校验 |
 | IBAN | 银行账户 | 前 4 位移到末尾，字母→数字，`mod 97 == 1` |
 | OGRN/OGRNIP | 公司注册 | `int(前 n 位) mod (11/13) mod 10 == 末位` |
+
+## 策略与可逆性
+
+`redact()` 通过**策略**替换每个命中。设置 `reversible=True` 时还会记录一个
+vault（`替换 → 原始`），以便对 AI 的回答进行反脱敏。
+
+| 策略 | 示例输出 | 可逆 |
+|------|----------|:----:|
+| `placeholder`（默认） | `[CARD_1]` | 是 |
+| `pseudonym` | `4574 9172 3643 9348`（通过 Luhn 的假值，保留格式） | 是 |
+| `partial` | `**** **** **** 1111` | 否 |
+| `hash` | `[CARD_3f9a1c2b80]` | 是 |
+| `remove` | ``（删除） | 否 |
+
+```python
+r = redact("card 4111 1111 1111 1111", strategy="pseudonym", reversible=True)
+r.masked_text   # 'card 4574 9172 3643 9348'  — 假值，通过 Luhn
+r.restore()     # 'card 4111 1111 1111 1111'  — 精确逆变换
+```
+
+CLI：`datashield redact --strategy pseudonym --vault v.json`，然后
+`… | datashield restore --vault v.json`。vault 保存原始值——请保存在本地。
 
 ## 指标
 

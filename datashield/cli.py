@@ -75,11 +75,24 @@ def _cmd_redact(args: argparse.Namespace) -> int:
         if problem:
             sys.stderr.write(problem + "\n")
             return 2
-    engine = build_engine(
-        config, min_confidence=args.min_confidence, only=only, exclude=exclude
-    )
+    reversible = args.reversible or bool(args.vault)
+    try:
+        engine = build_engine(
+            config,
+            min_confidence=args.min_confidence,
+            only=only,
+            exclude=exclude,
+            strategy=args.strategy,
+            reversible=reversible,
+        )
+    except ValueError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
     text = _read_input(args.input)
     result = engine.redact(text)
+    if args.vault:
+        with open(args.vault, "w", encoding="utf-8") as handle:
+            json.dump(result.vault, handle, ensure_ascii=False, indent=2)
     if args.report:
         with open(args.report, "w", encoding="utf-8") as handle:
             json.dump(result.report(), handle, ensure_ascii=False, indent=2)
@@ -150,6 +163,18 @@ def _cmd_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_restore(args: argparse.Namespace) -> int:
+    from datashield import restore
+
+    with open(args.vault, encoding="utf-8") as handle:
+        vault = json.load(handle)
+    if not isinstance(vault, dict):
+        sys.stderr.write("Vault должен быть JSON-объектом замена→оригинал.\n")
+        return 2
+    _write_output(args.output, restore(_read_input(args.input), vault))
+    return 0
+
+
 def _cmd_detectors(args: argparse.Namespace) -> int:
     config = _load_config_or_exit(args.config)
     catalog = build_catalog(config)
@@ -187,7 +212,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_redact.add_argument("-o", "--out", dest="output", help="выходной файл (иначе stdout)")
     p_redact.add_argument("--report", help="записать JSON-отчёт аудита (без сырых значений)")
     p_redact.add_argument("--json", action="store_true", help="вывод в JSON")
+    p_redact.add_argument(
+        "--strategy", default="placeholder",
+        choices=["placeholder", "pseudonym", "partial", "hash", "remove"],
+        help="способ маскировки (по умолчанию placeholder)",
+    )
+    p_redact.add_argument(
+        "--reversible", action="store_true",
+        help="собрать vault для восстановления (placeholder/pseudonym/hash)",
+    )
+    p_redact.add_argument(
+        "--vault", help="записать vault (замена→оригинал) в файл; включает --reversible",
+    )
     p_redact.set_defaults(func=_cmd_redact)
+
+    p_restore = sub.add_parser("restore", help="восстановить оригиналы по vault")
+    p_restore.add_argument("-i", "--in", dest="input", help="замаскированный текст (иначе stdin)")
+    p_restore.add_argument("-o", "--out", dest="output", help="выходной файл (иначе stdout)")
+    p_restore.add_argument("--vault", required=True, help="файл vault от redact --vault")
+    p_restore.set_defaults(func=_cmd_restore)
 
     p_scan = sub.add_parser("scan", help="показать найденное без маскировки")
     add_common(p_scan)

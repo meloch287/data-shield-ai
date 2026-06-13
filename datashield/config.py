@@ -23,6 +23,9 @@ class Config:
     enabled_detectors: Tuple[str, ...] = ()
     allowlist: Tuple[str, ...] = ()
     custom_patterns: Tuple[Dict[str, Any], ...] = ()
+    strategy: str = "placeholder"
+    pseudonym_key: str = ""
+    reversible: bool = False
 
 
 def find_default_config(start: Optional[str] = None) -> Optional[str]:
@@ -47,4 +50,7 @@ def load_config(path: Optional[str] = None) -> Config:
         enabled_detectors=tuple(data.get("enabled_detectors", ())),
         allowlist=tuple(data.get("allowlist", ())),
         custom_patterns=tuple(data.get("custom_patterns", ())),
+        strategy=str(data.get("strategy", "placeholder")),
+        pseudonym_key=str(data.get("pseudonym_key", "")),
+        reversible=bool(data.get("reversible", False)),
     )

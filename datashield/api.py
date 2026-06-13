@@ -7,14 +7,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from datashield.config import Config
 from datashield.detectors.base import Finding
 from datashield.detectors.registry import build_active
-from datashield.engine import RedactionEngine, RedactionResult
+from datashield.engine import RedactionEngine, RedactionResult, restore
+from datashield.strategies import make_strategy
 
-__all__ = ["build_engine", "redact", "scan"]
+__all__ = ["build_engine", "redact", "scan", "restore"]
 
 
 def build_engine(
@@ -23,8 +24,20 @@ def build_engine(
     min_confidence: Optional[float] = None,
     only: Optional[Iterable[str]] = None,
     exclude: Optional[Iterable[str]] = None,
+    strategy: Optional[Any] = None,
+    reversible: Optional[bool] = None,
 ) -> RedactionEngine:
     config = config if config is not None else Config()
+    if strategy is None:
+        strategy = make_strategy(
+            config.strategy,
+            template=config.placeholder_template,
+            key=config.pseudonym_key,
+        )
+    elif isinstance(strategy, str):
+        strategy = make_strategy(
+            strategy, template=config.placeholder_template, key=config.pseudonym_key
+        )
     return RedactionEngine(
         build_active(config),
         placeholder_template=config.placeholder_template,
@@ -34,6 +47,8 @@ def build_engine(
         allowlist=config.allowlist,
         only=only,
         exclude=exclude,
+        strategy=strategy,
+        reversible=config.reversible if reversible is None else reversible,
     )
 
 

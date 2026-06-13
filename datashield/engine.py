@@ -9,13 +9,25 @@ import hashlib
 import os
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from datashield.detectors.base import Finding
-from datashield.masking import PlaceholderAllocator, mask_preview
+from datashield.masking import ReplacementContext, mask_preview
+from datashield.strategies import PlaceholderStrategy
 
-__all__ = ["RedactionEngine", "RedactionResult", "resolve_overlaps"]
+__all__ = ["RedactionEngine", "RedactionResult", "resolve_overlaps", "restore"]
+
+
+def restore(masked_text: str, vault: Dict[str, str]) -> str:
+    """Восстанавливает оригиналы по vault (замена → оригинал).
+
+    Замены подставляются от длинных к коротким, чтобы не задеть вложенные токены.
+    Работает для обратимых стратегий (placeholder, pseudonym, hash).
+    """
+    for replacement in sorted(vault, key=len, reverse=True):
+        masked_text = masked_text.replace(replacement, vault[replacement])
+    return masked_text
 
 
 def resolve_overlaps(findings: Sequence[Finding]) -> List[Finding]:
@@ -53,6 +65,11 @@ class RedactionResult:
     findings: List[Finding]
     stats: Dict[str, int]
     placeholders: Dict[str, str]
+    vault: Dict[str, str] = field(default_factory=dict)
+
+    def restore(self, text: Optional[str] = None) -> str:
+        """Восстановить оригиналы (по своему vault) в masked_text или в `text`."""
+        return restore(self.masked_text if text is None else text, self.vault)
 
     def report(self, salt: Optional[bytes] = None) -> Dict[str, Any]:
         """Аудит-отчёт без сырых значений: тип, позиция, солёный хеш."""
@@ -89,6 +106,8 @@ class RedactionEngine:
         allowlist: Sequence[str] = (),
         only: Optional[Iterable[str]] = None,
         exclude: Optional[Iterable[str]] = None,
+        strategy: Optional[Any] = None,
+        reversible: bool = False,
     ) -> None:
         self.detectors = list(detectors)
         self.placeholder_template = placeholder_template
@@ -96,6 +115,8 @@ class RedactionEngine:
         self.allowlist = tuple(a.lower() for a in allowlist)
         self.only = {t.upper() for t in only} if only else None
         self.exclude = {t.upper() for t in exclude} if exclude else None
+        self.strategy = strategy or PlaceholderStrategy(placeholder_template)
+        self.reversible = reversible
 
     def _allowed(self, value: str) -> bool:
         low = value.lower()
@@ -123,12 +144,12 @@ class RedactionEngine:
 
     def redact(self, text: str) -> RedactionResult:
         findings = self.analyze(text)
-        allocator = PlaceholderAllocator(self.placeholder_template)
+        context = ReplacementContext(self.strategy)
         parts: List[str] = []
         cursor = 0
         for finding in findings:
             parts.append(text[cursor:finding.start])
-            parts.append(allocator.placeholder_for(finding.type, finding.value))
+            parts.append(context.replacement_for(finding))
             cursor = finding.end
         parts.append(text[cursor:])
         stats = Counter(f.type for f in findings)
@@ -137,5 +158,6 @@ class RedactionEngine:
             masked_text="".join(parts),
             findings=findings,
             stats=dict(stats),
-            placeholders=allocator.mapping,
+            placeholders=context.mapping,
+            vault=context.vault() if self.reversible else {},
         )

@@ -1,9 +1,9 @@
 """Data Shield AI — локальный фильтр приватности между пользователем и ИИ."""
 from __future__ import annotations
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
-from datashield.api import build_engine, redact, scan
+from datashield.api import build_engine, redact, restore, scan
 from datashield.config import Config, load_config
 from datashield.detectors.base import Finding
 from datashield.engine import RedactionEngine, RedactionResult
@@ -13,6 +13,7 @@ __all__ = [
     "build_engine",
     "redact",
     "scan",
+    "restore",
     "Config",
     "load_config",
     "Finding",

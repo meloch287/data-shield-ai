@@ -2,6 +2,23 @@
 
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [1.2.0] — 2026-06-13
+
+### Добавлено
+- **Обратимая редакция** (опционально): `redact(..., reversible=True)` собирает
+  vault (замена→оригинал); `result.restore()` и `restore(text, vault)` точно
+  восстанавливают оригинал. CLI: `redact --vault file.json` и команда `restore`.
+- **Стратегии маскировки** (`--strategy`): `placeholder` (по умолчанию),
+  `pseudonym` (детерминированные фейки — карта валидна по Луну, формат сохранён),
+  `partial` (`**** **** **** 1111`), `hash` (`[TYPE_<hash>]`), `remove`.
+- **Format-preserving генераторы** (`datashield.formats`) — детерминированные
+  фейки с сохранением длины/разделителей.
+- Поля конфигурации: `strategy`, `pseudonym_key`, `reversible`.
+
+### Инфраструктура
+- `py.typed`, конфиги ruff/mypy/coverage; CI: задачи lint и coverage.
+- `CONTRIBUTING`, `SECURITY`, `CODE_OF_CONDUCT`, шаблоны issue/PR.
+
 ## [1.1.0] — 2026-06-13
 
 ### Добавлено

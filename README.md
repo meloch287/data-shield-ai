@@ -30,6 +30,7 @@ Pure Python stdlib, no dependencies, no network. 52 detectors, 45 data types. Sa
 - [Confidence model](#confidence-model)
 - [Overlap resolution](#overlap-resolution)
 - [Validation algorithms](#validation-algorithms)
+- [Strategies & reversibility](#strategies--reversibility)
 - [Metrics](#metrics)
 - [Privacy model](#privacy-model)
 - [Install / Usage / API](#install)
@@ -171,6 +172,28 @@ Checksums replace naive regex matching to suppress false positives.
 | SNILS | pension id | `Σ d[i]·(9-i) mod 101` → control |
 | IBAN | bank account | move 4 chars to tail, letters→numbers, `mod 97 == 1` |
 | OGRN/OGRNIP | company reg. | `int(first n) mod (11/13) mod 10 == last` |
+
+## Strategies & reversibility
+
+`redact()` replaces each finding via a **strategy**. With `reversible=True` it also
+records a vault (`replacement → original`) so the AI's answer can be un-masked.
+
+| strategy | example output | reversible |
+|----------|----------------|:----------:|
+| `placeholder` (default) | `[CARD_1]` | yes |
+| `pseudonym` | `4574 9172 3643 9348` (Luhn-valid fake, format kept) | yes |
+| `partial` | `**** **** **** 1111` | no |
+| `hash` | `[CARD_3f9a1c2b80]` | yes |
+| `remove` | `` (deleted) | no |
+
+```python
+r = redact("card 4111 1111 1111 1111", strategy="pseudonym", reversible=True)
+r.masked_text   # 'card 4574 9172 3643 9348'  — fake, passes Luhn
+r.restore()     # 'card 4111 1111 1111 1111'  — exact inverse
+```
+
+CLI: `datashield redact --strategy pseudonym --vault v.json`, then
+`… | datashield restore --vault v.json`. The vault holds originals — keep it local.
 
 ## Metrics
 
