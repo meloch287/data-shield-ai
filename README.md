@@ -276,15 +276,23 @@ xychart-beta
 | metric | value |
 |--------|-------|
 | Detectors / types | 75 / 68 |
-| Default-on detectors | 48 |
+| Default-on detectors | 71 |
+| **Precision / Recall / F1** | **1.00 / 1.00 / 1.00** (labeled eval corpus, 0 FP) |
 | Cold start | ~15 ms |
 | Throughput | ~1.05 MB/s |
-| Tests | **701** (stdlib unittest), green on Python 3.9–3.13 |
-| Test runtime | ~6.1 s |
+| Tests | **1540+** (stdlib unittest), green on Python 3.9–3.13 |
 | <a name="footprint"></a>Runtime dependencies | **0** |
-| Core size | 1665 LOC / 21 files |
 
-Detectors were hardened by a parallel adversarial audit (13 agents): 13 precision/recall/DoS issues were found and fixed, each locked by a regression test (`tests/test_adversarial_regression.py`).
+Quality is measured, not asserted: `tools/eval/evaluate.py` runs the engine over a
+labeled corpus (`tools/eval/corpus.jsonl`, positives + decoys) and
+`tests/test_eval_metrics.py` gates precision/recall/F1 ≥ 0.95 in CI. Version strings
+(`1.2.3.4`) and long OIDs are suppressed for the IPv4 detector. Known inherent
+ambiguities beyond the corpus (a standalone 4-component OID, or a hash split into
+colon-separated hex pairs) can still over-mask as IP/MAC — cosmetic, never a leak.
+
+Detectors were hardened by parallel adversarial audits: precision / recall / DoS
+issues (including two ReDoS) were found and fixed, each locked by a regression test
+(`tests/test_adversarial_regression.py`).
 
 ## Privacy model
 

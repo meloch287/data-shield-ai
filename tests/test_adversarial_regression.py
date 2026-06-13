@@ -108,6 +108,30 @@ class ReDoSRegressions(unittest.TestCase):
         self.assertLess(time.perf_counter() - t0, 0.5)
 
 
+class FalsePositiveSuppressionTests(unittest.TestCase):
+    """Подавление FP, найденных адверсариал-аудитом Блока F."""
+
+    def test_version_not_ip(self):
+        self.assertNotIn("IP", types_in("версия сборки 1.2.3.4 финальная"))
+        self.assertNotIn("IP", types_in("Build 2.10.4 ready"))
+
+    def test_long_oid_not_ip(self):
+        self.assertNotIn("IP", types_in("oid 2.5.29.17.1 cert"))
+
+    def test_real_ip_still_detected(self):
+        self.assertIn("IP", types_in("DNS 8.8.8.8 google"))
+        self.assertIn("IP", types_in("сервер 192.168.0.1 в сети"))
+
+    def test_uuid_not_aadhaar(self):
+        self.assertNotIn(
+            "AADHAAR", types_in("id 550e8400-e29b-41d4-a716-121212121212")
+        )
+
+    def test_order_number_not_card(self):
+        # 16-значный номер заказа на Луна, но IIN не 2-6.
+        self.assertNotIn("CREDIT_CARD", types_in("заказ 1234567812345670 готов"))
+
+
 class KeywordGatedStillWork(unittest.TestCase):
     """SSN/NINO ловятся при ключевом слове рядом."""
 

@@ -48,6 +48,8 @@ class RegexDetector:
         flags: int = 0,
         group: int = 0,
         validator: Optional[Callable[[str], bool]] = None,
+        suppress_context: Optional[str] = None,
+        context_window: int = 15,
     ) -> None:
         self.name = name
         self.type = type
@@ -55,6 +57,12 @@ class RegexDetector:
         self.confidence = confidence
         self.group = group
         self.validator = validator
+        # Если предшествующее окно совпадает с suppress — находку отбрасываем
+        # (напр. IP, которому предшествует «версия/build» — это номер версии).
+        self.suppress_re = (
+            re.compile(suppress_context) if suppress_context else None
+        )
+        self.context_window = context_window
 
     def detect(self, text: str) -> List[Finding]:
         findings: List[Finding] = []
@@ -65,6 +73,10 @@ class RegexDetector:
             if self.validator is not None and not self.validator(value):
                 continue
             start, end = match.span(self.group)
+            if self.suppress_re is not None:
+                context = text[max(0, start - self.context_window):start]
+                if self.suppress_re.search(context):
+                    continue
             findings.append(
                 Finding(self.type, start, end, value, self.confidence, self.name)
             )

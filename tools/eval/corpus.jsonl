@@ -1,0 +1,48 @@
+{"text": "Напишите мне на ivan.petrov@example.com сегодня", "types": ["EMAIL"]}
+{"text": "Контакт: maria-smith@sub.example.co.uk", "types": ["EMAIL"]}
+{"text": "Звоните +7 916 123 45 67 после обеда", "types": ["PHONE_RU"]}
+{"text": "Тел 8 (495) 123-45-67 рабочий", "types": ["PHONE_RU"]}
+{"text": "Call me at +1 415 555 0132 tonight", "types": ["PHONE"]}
+{"text": "Оплата картой 4111 1111 1111 1111", "types": ["CREDIT_CARD"]}
+{"text": "card 5500005555555559", "types": ["CREDIT_CARD"]}
+{"text": "Счёт IBAN GB82 WEST 1234 5698 7654 32", "types": ["IBAN"]}
+{"text": "ИНН 7707083893 организации", "types": ["INN"]}
+{"text": "идентификатор 500100732259 в базе", "types": ["INN"]}
+{"text": "СНИЛС 112-233-445 95 в анкете", "types": ["SNILS"]}
+{"text": "ОГРН 1027700132195 в реестре", "types": ["OGRN"]}
+{"text": "сервер 192.168.10.50 в сети", "types": ["IP"]}
+{"text": "узел 2001:db8::8a2e:370:7334 онлайн", "types": ["IP"]}
+{"text": "устройство 00:1A:2B:3C:4D:5E подключено", "types": ["MAC"]}
+{"text": "Aadhaar 234123412346", "types": ["AADHAAR"]}
+{"text": "PAN ABCDE1234F выдан", "types": ["PAN_IN"]}
+{"text": "身份证 110101199003071233", "types": ["CHINA_ID"]}
+{"text": "DNI 12345678Z", "types": ["DNI_ES"]}
+{"text": "Codice Fiscale RSSMRA85T10A562S", "types": ["CODICE_FISCALE"]}
+{"text": "SSN: 123-45-6789", "types": ["US_SSN"]}
+{"text": "NHS 9434765919 record", "types": ["NHS_UK"]}
+{"text": "routing 021000021 confirmed", "types": ["ABA_ROUTING"]}
+{"text": "Договор подписал Иванов Иван Иванович вчера", "types": ["PERSON"]}
+{"text": "Меня зовут Сергей, перезвоните", "types": ["PERSON"]}
+{"text": "Dear John, please review", "types": ["PERSON"]}
+{"text": "Адрес: ул. Ленина, дом 5", "types": ["ADDRESS"]}
+{"text": "живёт на проспекте Мира 12", "types": ["ADDRESS"]}
+{"text": "кошелёк 0x52908400098527886E0F7030069857D2E4169EE7", "types": ["ETH_ADDRESS"]}
+{"text": "db postgres://user:secretpass@host:5432/db", "types": ["URL_CREDENTIALS"]}
+{"text": "Иван Петров, email ivan@example.com, ИНН 7707083893", "types": ["EMAIL", "INN", "PERSON"]}
+{"text": "карта 5500005555555559, тел +7 916 000 11 22", "types": ["CREDIT_CARD", "PHONE_RU"]}
+{"text": "Клиент maria@example.com по адресу ул. Гагарина 3", "types": ["ADDRESS", "EMAIL"]}
+{"text": "номер заказа 1234567812345670 готов", "types": []}
+{"text": "трекинг 00000000000000 отправлен", "types": []}
+{"text": "версия сборки 1.2.3.4 финальная", "types": []}
+{"text": "встреча в 12:34:56 по МСК", "types": []}
+{"text": "артикул 123-45-6789 на складе", "types": []}
+{"text": "код AB123456C в каталоге", "types": []}
+{"text": "Кирпич упал со стены", "types": []}
+{"text": "Mark Down the price now", "types": []}
+{"text": "Шоссе было пустым совсем", "types": []}
+{"text": "число 7707083893 просто так", "types": []}
+{"text": "Большой Театр на площади", "types": []}
+{"text": "commit 0xabcdef1234567890abcdef1234567890abcdef12 merged", "types": ["ETH_ADDRESS"]}
+{"text": "обычное предложение без каких-либо данных", "types": []}
+{"text": "The quick brown fox jumps over the lazy dog", "types": []}
+{"text": "Москва и Санкт-Петербург — большие города", "types": []}

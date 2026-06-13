@@ -31,9 +31,11 @@ _FR_NIR = r"(?<![\dA-Z])[12][\s]?\d{2}[\s]?\d{2}[\s]?(?:\d{2}|2[AB])[\s]?\d{3}[\
 def build() -> List[object]:
     return [
         # --- сильная валидация → по умолчанию включены ---
+        # Исключаем дефис/hex-соседей, чтобы не ловить группу UUID/hex как Aadhaar.
         RegexDetector(
             "aadhaar", "AADHAAR",
-            r"(?<!\d)\d{4}\s?\d{4}\s?\d{4}(?!\d)", 0.9, validator=validate_aadhaar,
+            r"(?<![\dA-Fa-f-])\d{4}\s?\d{4}\s?\d{4}(?![\dA-Fa-f-])", 0.9,
+            validator=validate_aadhaar,
         ),
         RegexDetector("pan_in", "PAN_IN", r"\b[A-Z]{5}\d{4}[A-Z]\b", 0.85),
         RegexDetector(
