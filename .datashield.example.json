@@ -4,9 +4,15 @@
   "strategy": "placeholder",
   "reversible": false,
   "pseudonym_key": "",
-  "allowlist": ["example.com", "support@mycompany.com"],
+  "allowlist": [
+    "example.com",
+    "support@mycompany.com"
+  ],
   "disabled_detectors": [],
-  "enabled_detectors": ["high_entropy", "names_aggressive"],
+  "enabled_detectors": [
+    "high_entropy",
+    "names_aggressive"
+  ],
   "custom_patterns": [
     {
       "name": "employee_id",
@@ -14,5 +20,7 @@
       "pattern": "EMP-\\d{6}",
       "confidence": 0.9
     }
-  ]
+  ],
+  "preset": "",
+  "min_severity": ""
 }

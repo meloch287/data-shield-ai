@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from datashield.detectors.base import Finding
 from datashield.masking import ReplacementContext, mask_preview
 from datashield.strategies import PlaceholderStrategy
+from datashield.taxonomy import SEVERITY_ORDER, category_of, severity_of
 
 __all__ = ["RedactionEngine", "RedactionResult", "resolve_overlaps", "restore"]
 
@@ -84,6 +85,8 @@ class RedactionResult:
                     "end": finding.end,
                     "confidence": round(finding.confidence, 3),
                     "detector": finding.detector,
+                    "category": category_of(finding.type),
+                    "severity": severity_of(finding.type),
                     "value_sha256": digest[:32],
                     "preview": mask_preview(finding.value),
                 }
@@ -108,6 +111,7 @@ class RedactionEngine:
         exclude: Optional[Iterable[str]] = None,
         strategy: Optional[Any] = None,
         reversible: bool = False,
+        min_severity: str = "",
     ) -> None:
         self.detectors = list(detectors)
         self.placeholder_template = placeholder_template
@@ -117,6 +121,9 @@ class RedactionEngine:
         self.exclude = {t.upper() for t in exclude} if exclude else None
         self.strategy = strategy or PlaceholderStrategy(placeholder_template)
         self.reversible = reversible
+        self.min_severity_rank = (
+            SEVERITY_ORDER.get(min_severity.lower(), -1) if min_severity else -1
+        )
 
     def _allowed(self, value: str) -> bool:
         low = value.lower()
@@ -138,6 +145,11 @@ class RedactionEngine:
             if self.exclude is not None and finding.type in self.exclude:
                 continue
             if self._allowed(finding.value):
+                continue
+            if self.min_severity_rank >= 0 and (
+                SEVERITY_ORDER.get(severity_of(finding.type), 1)
+                < self.min_severity_rank
+            ):
                 continue
             filtered.append(finding)
         return resolve_overlaps(filtered)

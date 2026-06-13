@@ -31,6 +31,7 @@ Pure Python stdlib, no dependencies, no network. 75 detectors, 68 data types. Sa
 - [Overlap resolution](#overlap-resolution)
 - [Validation algorithms](#validation-algorithms)
 - [Strategies & reversibility](#strategies--reversibility)
+- [Presets and structured input](#presets-and-structured-input)
 - [Metrics](#metrics)
 - [Privacy model](#privacy-model)
 - [Install / Usage / API](#install)
@@ -211,6 +212,37 @@ r.restore()     # 'card 4111 1111 1111 1111'  — exact inverse
 
 CLI: `datashield redact --strategy pseudonym --vault v.json`, then
 `… | datashield restore --vault v.json`. The vault holds originals — keep it local.
+
+## Presets and structured input
+
+**Compliance presets** restrict detection to the types a regime cares about:
+
+| preset | scope |
+|--------|-------|
+| `pci-dss` | financial + secrets |
+| `hipaa` | health + person + government IDs + contact |
+| `gdpr` | broad personal data |
+| `secrets-only` | keys/tokens/passwords |
+| `ru-gov` | Russian government requisites |
+| `minimal` | only confidence ≥ 0.9 |
+
+```bash
+datashield redact --preset pci-dss          # mask cards & secrets only
+datashield redact --min-severity critical   # mask only critical types
+```
+
+Every type has a **category** and **severity** (low/medium/high/critical), shown in
+`datashield detectors`, `scan --json`, and the audit report, and usable via
+`--min-severity`.
+
+**Structured input** masks values while keeping the structure intact — by detector
+*and* by sensitive key/column name (`password`, `token`, `ssn`, …):
+
+```bash
+echo '{"name":"Ivan","password":"hunter2","age":30}' | datashield redact --format json-data
+# {"name":"[PERSON_1]","password":"[REDACTED]","age":30}
+datashield redact --format csv --in people.csv     # sensitive columns + per-cell detection
+```
 
 ## Metrics
 

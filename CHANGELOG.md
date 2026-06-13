@@ -2,6 +2,21 @@
 
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/).
 
+## [1.4.0] — 2026-06-13
+
+### Добавлено
+- **Структурированные входы** (`datashield.structured`): `redact_json` и
+  `redact_csv` маскируют значения по детекторам И по «чувствительным» ключам/
+  колонкам, сохраняя структуру. CLI: `redact --format json-data|csv`.
+- **Пресеты соответствия** (`--preset`): `pci-dss`, `hipaa`, `gdpr`,
+  `secrets-only`, `ru-gov`, `minimal` — наборы типов/порог под задачу.
+- **Категории и критичность** (`datashield.taxonomy`): каждый тип отнесён к
+  категории (contact/person/government_id/financial/health/crypto/network/secret)
+  и severity (low/medium/high/critical). Фильтр `--min-severity`; поля
+  `category`/`severity` в `report()` и `scan --json`; в выводе `detectors`.
+- **TOML-конфиг** (`.datashield.toml`, Python 3.11+) в дополнение к JSON.
+- Поля конфигурации: `preset`, `min_severity`.
+
 ## [1.3.0] — 2026-06-13
 
 ### Добавлено

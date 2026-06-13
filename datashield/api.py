@@ -13,6 +13,7 @@ from datashield.config import Config
 from datashield.detectors.base import Finding
 from datashield.detectors.registry import build_active
 from datashield.engine import RedactionEngine, RedactionResult, restore
+from datashield.presets import resolve_preset
 from datashield.strategies import make_strategy
 
 __all__ = ["build_engine", "redact", "scan", "restore"]
@@ -26,6 +27,8 @@ def build_engine(
     exclude: Optional[Iterable[str]] = None,
     strategy: Optional[Any] = None,
     reversible: Optional[bool] = None,
+    preset: Optional[str] = None,
+    min_severity: Optional[str] = None,
 ) -> RedactionEngine:
     config = config if config is not None else Config()
     if strategy is None:
@@ -38,17 +41,30 @@ def build_engine(
         strategy = make_strategy(
             strategy, template=config.placeholder_template, key=config.pseudonym_key
         )
+    # Пресет задаёт набор типов (only) и/или порог уверенности; явные аргументы
+    # имеют приоритет над пресетом, пресет — над конфигом.
+    preset_name = preset if preset is not None else config.preset
+    preset_conf: Optional[float] = None
+    if preset_name:
+        resolved = resolve_preset(preset_name)
+        if only is None and resolved.only is not None:
+            only = resolved.only
+        preset_conf = resolved.min_confidence
+    effective_min_conf = config.min_confidence
+    if preset_conf is not None:
+        effective_min_conf = preset_conf
+    if min_confidence is not None:
+        effective_min_conf = min_confidence
     return RedactionEngine(
         build_active(config),
         placeholder_template=config.placeholder_template,
-        min_confidence=(
-            min_confidence if min_confidence is not None else config.min_confidence
-        ),
+        min_confidence=effective_min_conf,
         allowlist=config.allowlist,
         only=only,
         exclude=exclude,
         strategy=strategy,
         reversible=config.reversible if reversible is None else reversible,
+        min_severity=min_severity if min_severity is not None else config.min_severity,
     )
 
 

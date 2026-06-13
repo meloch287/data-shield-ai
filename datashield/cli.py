@@ -19,6 +19,7 @@ from datashield.api import build_engine
 from datashield.config import Config, load_config
 from datashield.detectors.registry import build_catalog
 from datashield.masking import mask_preview
+from datashield.taxonomy import category_of, severity_of
 
 
 def _read_input(path: Optional[str]) -> str:
@@ -84,11 +85,24 @@ def _cmd_redact(args: argparse.Namespace) -> int:
             exclude=exclude,
             strategy=args.strategy,
             reversible=reversible,
+            preset=args.preset,
+            min_severity=args.min_severity,
         )
     except ValueError as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
     text = _read_input(args.input)
+    fmt = getattr(args, "format", "text")
+    if fmt in ("json-data", "csv"):
+        from datashield.structured import redact_csv, redact_json
+
+        try:
+            out = redact_json(text, engine) if fmt == "json-data" else redact_csv(text, engine)
+        except ValueError as exc:
+            sys.stderr.write(f"Ошибка разбора {fmt}: {exc}\n")
+            return 1
+        _write_output(args.output, out)
+        return 0
     result = engine.redact(text)
     if args.vault:
         with open(args.vault, "w", encoding="utf-8") as handle:
@@ -117,9 +131,14 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         if problem:
             sys.stderr.write(problem + "\n")
             return 2
-    engine = build_engine(
-        config, min_confidence=args.min_confidence, only=only, exclude=exclude
-    )
+    try:
+        engine = build_engine(
+            config, min_confidence=args.min_confidence, only=only, exclude=exclude,
+            preset=args.preset, min_severity=args.min_severity,
+        )
+    except ValueError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
     findings = engine.analyze(_read_input(args.input))
     if args.json:
         payload = [
@@ -129,6 +148,8 @@ def _cmd_scan(args: argparse.Namespace) -> int:
                 "end": f.end,
                 "confidence": round(f.confidence, 3),
                 "detector": f.detector,
+                "category": category_of(f.type),
+                "severity": severity_of(f.type),
                 "preview": mask_preview(f.value),
             }
             for f in findings
@@ -181,8 +202,10 @@ def _cmd_detectors(args: argparse.Namespace) -> int:
     for info in catalog:
         status = "вкл " if info.enabled else "выкл"
         default = "" if info.default_enabled else "  (по умолчанию выкл)"
+        t = info.detector.type
         sys.stdout.write(
-            f"  [{status}] {info.detector.name:<18} -> {info.detector.type}{default}\n"
+            f"  [{status}] {info.detector.name:<20} -> {t:<18} "
+            f"{category_of(t)}/{severity_of(t)}{default}\n"
         )
     return 0
 
@@ -206,6 +229,16 @@ def build_parser() -> argparse.ArgumentParser:
         if with_filters:
             p.add_argument("--only", help="только эти типы (через запятую)")
             p.add_argument("--exclude", help="исключить эти типы (через запятую)")
+            p.add_argument(
+                "--preset",
+                choices=["pci-dss", "hipaa", "gdpr", "secrets-only", "ru-gov", "minimal"],
+                help="пресет соответствия (набор типов/порог)",
+            )
+            p.add_argument(
+                "--min-severity",
+                choices=["low", "medium", "high", "critical"],
+                help="маскировать только типы не ниже этой критичности",
+            )
 
     p_redact = sub.add_parser("redact", help="замаскировать текст")
     add_common(p_redact)
@@ -223,6 +256,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_redact.add_argument(
         "--vault", help="записать vault (замена→оригинал) в файл; включает --reversible",
+    )
+    p_redact.add_argument(
+        "--format", default="text", choices=["text", "json-data", "csv"],
+        help="формат входа: text (по умолчанию), json-data или csv (структурно)",
     )
     p_redact.set_defaults(func=_cmd_redact)
 

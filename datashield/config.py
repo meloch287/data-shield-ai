@@ -10,9 +10,15 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover - зависит от версии Python
+    tomllib = None  # type: ignore[assignment]
+
 __all__ = ["Config", "load_config", "DEFAULT_CONFIG_NAME"]
 
 DEFAULT_CONFIG_NAME = ".datashield.json"
+DEFAULT_CONFIG_NAMES = (".datashield.json", ".datashield.toml")
 
 
 @dataclass(frozen=True)
@@ -26,12 +32,17 @@ class Config:
     strategy: str = "placeholder"
     pseudonym_key: str = ""
     reversible: bool = False
+    preset: str = ""
+    min_severity: str = ""
 
 
 def find_default_config(start: Optional[str] = None) -> Optional[str]:
     directory = start or os.getcwd()
-    candidate = os.path.join(directory, DEFAULT_CONFIG_NAME)
-    return candidate if os.path.isfile(candidate) else None
+    for name in DEFAULT_CONFIG_NAMES:
+        candidate = os.path.join(directory, name)
+        if os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 def load_config(path: Optional[str] = None) -> Config:
@@ -39,10 +50,16 @@ def load_config(path: Optional[str] = None) -> Config:
     resolved = path or find_default_config()
     if not resolved:
         return Config()
-    with open(resolved, encoding="utf-8") as handle:
-        data = json.load(handle)
+    if resolved.endswith(".toml"):
+        if tomllib is None:
+            raise ValueError("TOML-конфиг требует Python 3.11+ (используйте JSON)")
+        with open(resolved, "rb") as handle:
+            data = tomllib.load(handle)
+    else:
+        with open(resolved, encoding="utf-8") as handle:
+            data = json.load(handle)
     if not isinstance(data, dict):
-        raise ValueError("Конфиг должен быть JSON-объектом")
+        raise ValueError("Конфиг должен быть объектом")
     return Config(
         min_confidence=float(data.get("min_confidence", 0.7)),
         placeholder_template=str(data.get("placeholder_template", "[{type}_{n}]")),
@@ -53,4 +70,6 @@ def load_config(path: Optional[str] = None) -> Config:
         strategy=str(data.get("strategy", "placeholder")),
         pseudonym_key=str(data.get("pseudonym_key", "")),
         reversible=bool(data.get("reversible", False)),
+        preset=str(data.get("preset", "")),
+        min_severity=str(data.get("min_severity", "")),
     )
