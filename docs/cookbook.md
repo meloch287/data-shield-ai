@@ -81,7 +81,7 @@ logging.info("user %s paid with %s", "a@b.com", "4111 1111 1111 1111")
 ```yaml
 repos:
   - repo: https://github.com/meloch287/data-shield-ai
-    rev: v1.11.0
+    rev: v1.12.0
     hooks: [{ id: data-shield-ai }]
 ```
 

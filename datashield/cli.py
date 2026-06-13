@@ -106,11 +106,11 @@ def _cmd_redact(args: argparse.Namespace) -> int:
         return 0
     text = _read_input(args.input)
     fmt = getattr(args, "format", "text")
-    if fmt in ("json-data", "csv"):
-        from datashield.structured import redact_csv, redact_json
+    if fmt != "text":
+        from datashield.structured import redact_format
 
         try:
-            out = redact_json(text, engine) if fmt == "json-data" else redact_csv(text, engine)
+            out = redact_format(text, fmt, engine)
         except ValueError as exc:
             sys.stderr.write(f"Ошибка разбора {fmt}: {exc}\n")
             return 1
@@ -354,8 +354,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--vault", help="записать vault (замена→оригинал) в файл; включает --reversible",
     )
     p_redact.add_argument(
-        "--format", default="text", choices=["text", "json-data", "csv"],
-        help="формат входа: text (по умолчанию), json-data или csv (структурно)",
+        "--format", default="text",
+        choices=["text", "json-data", "ndjson", "csv", "xml"],
+        help="формат входа: text (по умолчанию), json-data, ndjson, csv или xml "
+             "(структурно, с сохранением формы)",
     )
     p_redact.add_argument(
         "--stream", action="store_true",

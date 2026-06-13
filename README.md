@@ -252,13 +252,21 @@ Every type has a **category** and **severity** (low/medium/high/critical), shown
 `--min-severity`.
 
 **Structured input** masks values while keeping the structure intact — by detector
-*and* by sensitive key/column name (`password`, `token`, `ssn`, …):
+*and* by sensitive key/column/tag name (`password`, `token`, `ssn`, …). Formats:
+`json-data`, `ndjson` (JSON Lines), `csv`, `xml` — all stdlib, no parser deps:
 
 ```bash
 echo '{"name":"Ivan","password":"hunter2","age":30}' | datashield redact --format json-data
 # {"name":"[PERSON_1]","password":"[REDACTED]","age":30}
-datashield redact --format csv --in people.csv     # sensitive columns + per-cell detection
+datashield redact --format ndjson --in events.jsonl  # mask each JSON line, structure kept
+datashield redact --format csv    --in people.csv    # sensitive columns + per-cell detection
+datashield redact --format xml    --in export.xml    # node text + attributes; <password>→[REDACTED]
 ```
+
+NDJSON masks each line independently (an invalid line is masked as plain text — raw
+data is never emitted). XML rejects `DOCTYPE`/`ENTITY` (no entity-expansion) and is
+depth-bounded. The same helpers are importable: `from datashield import redact_ndjson,
+redact_xml, redact_format`.
 
 ## Metrics
 
