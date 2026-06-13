@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.venv-dev
+dist
+build
+*.egg-info
+__pycache__
+.mypy_cache
+.coverage
+htmlcov
+docs/superpowers
+tests
