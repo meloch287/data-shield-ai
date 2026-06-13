@@ -34,6 +34,9 @@ class Config:
     reversible: bool = False
     preset: str = ""
     min_severity: str = ""
+    normalize: bool = False
+    fold_homoglyphs: bool = False
+    max_input_size: int = 0
 
 
 def find_default_config(start: Optional[str] = None) -> Optional[str]:
@@ -72,4 +75,7 @@ def load_config(path: Optional[str] = None) -> Config:
         reversible=bool(data.get("reversible", False)),
         preset=str(data.get("preset", "")),
         min_severity=str(data.get("min_severity", "")),
+        normalize=bool(data.get("normalize", False)),
+        fold_homoglyphs=bool(data.get("fold_homoglyphs", False)),
+        max_input_size=int(data.get("max_input_size", 0)),
     )

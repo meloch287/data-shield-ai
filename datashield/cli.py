@@ -87,6 +87,9 @@ def _cmd_redact(args: argparse.Namespace) -> int:
             reversible=reversible,
             preset=args.preset,
             min_severity=args.min_severity,
+            normalize=args.normalize,
+            fold_homoglyphs=args.fold_homoglyphs,
+            max_input_size=args.max_input_size,
         )
     except ValueError as exc:
         sys.stderr.write(f"{exc}\n")
@@ -135,10 +138,14 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         engine = build_engine(
             config, min_confidence=args.min_confidence, only=only, exclude=exclude,
             preset=args.preset, min_severity=args.min_severity,
+            normalize=args.normalize, fold_homoglyphs=args.fold_homoglyphs,
+            max_input_size=args.max_input_size,
         )
     except ValueError as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
+    # analyze() может бросить ValueError по лимиту размера — это рантайм-ошибка
+    # (код 1 через main), а не ошибка использования (код 2).
     findings = engine.analyze(_read_input(args.input))
     if args.json:
         payload = [
@@ -226,6 +233,18 @@ def build_parser() -> argparse.ArgumentParser:
             "-m", "--min-confidence", type=float, default=None,
             help="порог уверенности (по умолчанию из конфига, 0.7)",
         )
+        p.add_argument(
+            "--normalize", action="store_true", default=None,
+            help="NFKC-нормализация входа (ловит полноширинные цифры и т. п.)",
+        )
+        p.add_argument(
+            "--fold-homoglyphs", dest="fold_homoglyphs", action="store_true",
+            default=None, help="сворачивать кириллические гомоглифы в смешанных токенах",
+        )
+        p.add_argument(
+            "--max-input-size", dest="max_input_size", type=int, default=None,
+            help="отказать, если вход длиннее N символов (0 — без лимита)",
+        )
         if with_filters:
             p.add_argument("--only", help="только эти типы (через запятую)")
             p.add_argument("--exclude", help="исключить эти типы (через запятую)")
@@ -293,6 +312,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return args.func(args)
     except BrokenPipeError:
         return 0
+    except ValueError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 1
     except OSError as exc:
         sys.stderr.write(f"Ошибка ввода-вывода: {exc}\n")
         return 1

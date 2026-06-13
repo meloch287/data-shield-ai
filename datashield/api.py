@@ -29,6 +29,9 @@ def build_engine(
     reversible: Optional[bool] = None,
     preset: Optional[str] = None,
     min_severity: Optional[str] = None,
+    normalize: Optional[bool] = None,
+    fold_homoglyphs: Optional[bool] = None,
+    max_input_size: Optional[int] = None,
 ) -> RedactionEngine:
     config = config if config is not None else Config()
     if strategy is None:
@@ -65,6 +68,13 @@ def build_engine(
         strategy=strategy,
         reversible=config.reversible if reversible is None else reversible,
         min_severity=min_severity if min_severity is not None else config.min_severity,
+        normalize=config.normalize if normalize is None else normalize,
+        fold_homoglyphs=(
+            config.fold_homoglyphs if fold_homoglyphs is None else fold_homoglyphs
+        ),
+        max_input_size=(
+            config.max_input_size if max_input_size is None else max_input_size
+        ),
     )
 
 

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from datashield.detectors.base import Finding
 from datashield.masking import ReplacementContext, mask_preview
+from datashield.normalize import normalize_text
 from datashield.strategies import PlaceholderStrategy
 from datashield.taxonomy import SEVERITY_ORDER, category_of, severity_of
 
@@ -112,6 +113,9 @@ class RedactionEngine:
         strategy: Optional[Any] = None,
         reversible: bool = False,
         min_severity: str = "",
+        normalize: bool = False,
+        fold_homoglyphs: bool = False,
+        max_input_size: int = 0,
     ) -> None:
         self.detectors = list(detectors)
         self.placeholder_template = placeholder_template
@@ -124,6 +128,9 @@ class RedactionEngine:
         self.min_severity_rank = (
             SEVERITY_ORDER.get(min_severity.lower(), -1) if min_severity else -1
         )
+        self.normalize = normalize
+        self.fold_homoglyphs = fold_homoglyphs
+        self.max_input_size = max_input_size
 
     def _allowed(self, value: str) -> bool:
         low = value.lower()
@@ -132,7 +139,25 @@ class RedactionEngine:
                 return True
         return False
 
+    def _prepare(self, text: str) -> str:
+        if self.max_input_size and len(text) > self.max_input_size:
+            raise ValueError(
+                f"Ввод {len(text)} символов превышает лимит {self.max_input_size}"
+            )
+        if self.normalize:
+            text = normalize_text(text, homoglyphs=self.fold_homoglyphs)
+            # NFKC может расширить строку — повторная проверка против DoS.
+            if self.max_input_size and len(text) > self.max_input_size:
+                raise ValueError(
+                    f"После нормализации ввод {len(text)} символов превышает "
+                    f"лимит {self.max_input_size}"
+                )
+        return text
+
     def analyze(self, text: str) -> List[Finding]:
+        return self._analyze(self._prepare(text))
+
+    def _analyze(self, text: str) -> List[Finding]:
         raw: List[Finding] = []
         for detector in self.detectors:
             raw.extend(detector.detect(text))
@@ -155,7 +180,8 @@ class RedactionEngine:
         return resolve_overlaps(filtered)
 
     def redact(self, text: str) -> RedactionResult:
-        findings = self.analyze(text)
+        text = self._prepare(text)
+        findings = self._analyze(text)
         context = ReplacementContext(self.strategy)
         parts: List[str] = []
         cursor = 0

@@ -22,5 +22,8 @@
     }
   ],
   "preset": "",
-  "min_severity": ""
+  "min_severity": "",
+  "normalize": false,
+  "fold_homoglyphs": false,
+  "max_input_size": 0
 }
